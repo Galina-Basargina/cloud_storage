@@ -39,22 +39,41 @@ class DatabaseInterface:
         return row
 
 
-class HttpGetHandler(BaseHTTPRequestHandler):
+class CloudServerRunner:
+    def __init__(self, address: str, port: int, database: DatabaseInterface):
+        self.database: DatabaseInterface = database
+        self.__httpd: HTTPServer = None
+
+        def handler(*args):
+            CloudServer(self, *args)
+
+        self.__httpd = HTTPServer((address, port), handler)
+        try:
+            self.__httpd.serve_forever()
+        except KeyboardInterrupt:
+            self.stop()
+
+    def __del__(self):
+        self.stop()
+
+    def stop(self):
+        if self.__httpd:
+            self.__httpd.server_close()
+            del self.__httpd
+            self.__httpd = None
+
+
+class CloudServer(BaseHTTPRequestHandler):
+    def __init__(self, runner: CloudServerRunner, *args):
+        self.runner: CloudServerRunner = runner
+        BaseHTTPRequestHandler.__init__(self, *args)
+
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
         message = f"Cloud access to files v1.0"
         self.wfile.write(bytes(message, "utf8"))
-
-
-def run(address: str, port: int, server_class=HTTPServer, handler_class=HttpGetHandler):
-    server_address = (address, port)
-    httpd = server_class(server_address, handler_class)
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        httpd.server_close()
 
 
 if __name__ == "__main__":
@@ -85,7 +104,11 @@ if __name__ == "__main__":
     print(f"Database connected: {version}")
 
     print(f"Running server at {args.address}:{args.port}")
-    run('' if args.address == '*' else args.address, int(args.port))
+    cloud = CloudServerRunner(
+        address='' if args.address == '*' else args.address,
+        port=int(args.port),
+        database=db)
+    del cloud
     print(f"Server stopped")
 
     db.disconnect()
