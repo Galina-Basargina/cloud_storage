@@ -1,8 +1,10 @@
+from http.cookiejar import request_path
 from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 import argparse
 import psycopg2
 import typing
+import json
 
 
 class DatabaseInterface:
@@ -38,6 +40,12 @@ class DatabaseInterface:
         cur.close()
         return row
 
+    def commit(self) -> None:
+        self.__conn.commit()
+
+    def rollback(self) -> None:
+        self.__conn.rollback()
+
 
 class CloudServerRunner:
     def __init__(self, address: str, port: int, database: DatabaseInterface):
@@ -68,12 +76,93 @@ class CloudServer(BaseHTTPRequestHandler):
         self.runner: CloudServerRunner = runner
         BaseHTTPRequestHandler.__init__(self, *args)
 
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        message = f"Cloud access to files v1.0"
-        self.wfile.write(bytes(message, "utf8"))
+    def serve_users(self, method: str, user_id: typing.Optional[int]):
+        if method == 'POST' and user_id is None:
+            if self.headers.get('Content-Type') != 'application/json':
+                response = {'error': 'unsupported Content-Type, use application/json'}
+            else:
+                content_len = int(self.headers.get('Content-Length'))
+                post_body = self.rfile.read(content_len)
+                request = json.loads(post_body)
+                if 'login' in request and 'password_checksum' in request:
+                    try:
+                        row = self.runner.database.fetch_one(
+                            "insert into users(login, password_checksum) "
+                            f"values('{request['login']}', '{request['password_checksum']}') "
+                            "returning id;")
+                    except:
+                        self.runner.database.rollback()
+                        response = {'error': 'User not created'}
+                    else:
+                        user_id: int = int(row[0])
+                        self.runner.database.commit()
+                        response = {'message': f'Handled {method} request'}
+                else:
+                    response = {'error': 'unsupported request, use login'}
+            error: bool = 'error' in response
+            self.send_response(400 if error else 201)  # Created (=201), Bad request (=400)
+            self.send_header("Content-Type", "application/json")
+            if not error:
+                self.send_header("Location", f"/users/{user_id}")
+            self.end_headers()
+            message = json.dumps(response)
+            self.wfile.write(bytes(message, "utf8"))
+        elif method == 'GET' and user_id is None:
+            pass
+        elif user_id is None:
+            # id не указан, требуют или обновить, или удалить ресурс
+            self.send_response(405)  # метод не разрешен
+            self.end_headers()
+        elif method == 'GET':
+            pass
+        elif method == 'PUT':
+            pass
+        elif method == 'PATCH':
+            pass
+        elif method == 'DELETE':
+            pass
+        else:
+            # например POST с id (нельзя создать пользователя, указав id)
+            self.send_response(405)  # недопустимая комбинация
+            self.end_headers()
+
+    def serve_request(self):
+        request_path: str = self.path
+        method: str = self.command.upper()
+        if request_path == '/users':
+            self.serve_users(method, None)
+        if request_path[:7] == '/users/':
+            self.serve_users(method, int(request_path[7:]))
+
+    def serve_get(self):
+        request_path: str = self.path
+        if request_path == '/favicon.ico':
+            self.send_response(200)
+            self.end_headers()
+            return
+        elif request_path == '/':
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            message = f"Cloud access to files v1.0"
+            self.wfile.write(bytes(message, "utf8"))
+            return
+        self.serve_request()
+
+    def serve_post(self):
+        self.serve_request()
+
+    def serve_options(self):
+        self.serve_request()
+
+    # ПОДРОБНЕЕ СМОТРИ ТУТ: https://restfulapi.net/http-methods/
+    do_GET = serve_get  # прочитать данные (получить файлы)
+    do_HEAD = serve_get
+    do_POST = serve_post  # создать ресурс (создать файл, папку, пользователя)
+    do_DELETE = serve_post  # удалить ресурс
+    do_PUT = serve_post  # обновить/заменить (заменить существующий файл без пересоздания)
+    do_PATCH = serve_post  # частичная замена/редактирование (отредактировать файл или настроить папку, пользователя)
+    do_OPTIONS = serve_options
 
 
 if __name__ == "__main__":

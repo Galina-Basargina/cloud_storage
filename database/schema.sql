@@ -6,20 +6,20 @@ drop table if exists users;
 
 
 create table users(
- id integer primary key,
- login text not null,
+ id serial primary key,
+ login text not null unique,
  password_checksum text not null
 );
 
 create table folders(
- id integer primary key,
+ id serial primary key,
  parent integer references folders(id),
  owner integer references users(id),
  name text not null
 );
 
 create table files (
- id integer primary key,
+ id serial primary key,
  owner integer not null references users(id),
  folder integer null references folders(id), -- корневая это null
  original_filename text, -- исходное имя файла, если известно
