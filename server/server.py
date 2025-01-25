@@ -5,36 +5,38 @@ import psycopg2
 import typing
 
 
-def database_execute(conn, query: str) -> None:
-    cur = conn.cursor()
-    cur.execute(query)
-    cur.close()
+class DatabaseInterface:
+    def __init__(self, settings):
+        self.__conn = None
+        self.settings = settings
 
+    def connect(self):
+        self.__conn = psycopg2.connect(
+            dbname=self.settings["dbname"],
+            user=self.settings["user"],
+            password=self.settings["password"],
+            host=self.settings["host"],
+            port=self.settings["port"])
+        self.execute(f"SET search_path TO {self.settings['schema']}")
 
-def database_fetch_one(conn, query: str) -> typing.Any:
-    cur = conn.cursor()
-    cur.execute(query)
-    row = cur.fetchone()
-    cur.close()
-    return row
+    def disconnect(self) -> None:
+        if not self.__conn.cursor().closed:
+            self.__conn.cursor().close()
+        self.__conn.close()
+        del self.__conn
+        self.__conn = None
 
+    def execute(self, query: str) -> None:
+        cur = self.__conn.cursor()
+        cur.execute(query)
+        cur.close()
 
-def database_connect(settings):
-    conn = psycopg2.connect(
-        dbname=settings["dbname"],
-        user=settings["user"],
-        password=settings["password"],
-        host=settings["host"],
-        port=settings["port"])
-    database_execute(conn, f"SET search_path TO {settings['schema']}")
-    return conn
-
-
-def database_disconnect(conn) -> None:
-    if not conn.cursor().closed:
-        conn.cursor().close()
-    conn.close()
-    del conn
+    def fetch_one(self, query: str) -> typing.Any:
+        cur = self.__conn.cursor()
+        cur.execute(query)
+        row = cur.fetchone()
+        cur.close()
+        return row
 
 
 class HttpGetHandler(BaseHTTPRequestHandler):
@@ -77,13 +79,15 @@ if __name__ == "__main__":
         'host': args.dbhost,
         'port': args.dbport,
         'schema': args.dbschema}
-    conn = database_connect(settings)
-    version = database_fetch_one(conn, "SELECT version();")
+    db: DatabaseInterface = DatabaseInterface(settings)
+    db.connect()
+    version = db.fetch_one("SELECT version();")
     print(f"Database connected: {version}")
 
     print(f"Running server at {args.address}:{args.port}")
     run('' if args.address == '*' else args.address, int(args.port))
     print(f"Server stopped")
 
-    database_disconnect(conn)
+    db.disconnect()
+    del db
     print(f"Database disconnected")
