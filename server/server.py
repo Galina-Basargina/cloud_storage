@@ -28,14 +28,20 @@ class DatabaseInterface:
         del self.__conn
         self.__conn = None
 
-    def execute(self, query: str) -> None:
+    def execute(self, query: str, *args) -> None:
         cur = self.__conn.cursor()
-        cur.execute(query)
+        if isinstance(args, tuple) and len(args) == 1 and isinstance(args[0], dict):
+            cur.execute(query, args[0])
+        else:
+            cur.execute(query, args)
         cur.close()
 
-    def fetch_one(self, query: str) -> typing.Any:
+    def fetch_one(self, query: str, *args) -> typing.Any:
         cur = self.__conn.cursor()
-        cur.execute(query)
+        if isinstance(args, tuple) and len(args) == 1 and isinstance(args[0], dict):
+            cur.execute(query, args[0])
+        else:
+            cur.execute(query, args)
         row = cur.fetchone()
         cur.close()
         return row
@@ -88,8 +94,11 @@ class CloudServer(BaseHTTPRequestHandler):
                     try:
                         row = self.runner.database.fetch_one(
                             "insert into users(login, password_checksum) "
-                            f"values('{request['login']}', '{request['password_checksum']}') "
-                            "returning id;")
+                            f"values(%(login)s, %(pass)s) "
+                            "returning id;", {
+                                'login': request['login'],
+                                'pass': request['password_checksum'],
+                            })
                     except:
                         self.runner.database.rollback()
                         response = {'error': 'User not created'}
@@ -116,15 +125,41 @@ class CloudServer(BaseHTTPRequestHandler):
         elif method == 'GET':
             pass
         elif method == 'PUT':
-            pass
+            # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
+            self.send_response(405)  # недопустимая комбинация
+            self.end_headers()
         elif method == 'PATCH':
-            pass
+            # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
+            self.send_response(405)  # недопустимая комбинация
+            self.end_headers()
         elif method == 'DELETE':
-            pass
+            user_found: bool = False
+            try:
+                row = self.runner.database.fetch_one(
+                    f"with deleted as (delete from users where id=%(id)s returning *) "
+                    "select count(1) from deleted;", {'id': user_id})
+                user_found: bool = row[0] == 1
+            except:
+                self.runner.database.rollback()
+                response = {'error': 'Error on user delete'}
+            else:
+                self.runner.database.commit()
+                response = {'message': f'Handled {method} request'}
+            error: bool = 'error' in response
+            if error:
+                self.send_response(400)  # Bad request (=400)
+            elif not user_found:
+                self.send_response(404)  # Not Found (=404)
+            else:
+                self.send_response(200)  # OK (=200)
+            self.end_headers()
+            message = json.dumps(response)
+            self.wfile.write(bytes(message, "utf8"))
         else:
             # например POST с id (нельзя создать пользователя, указав id)
             self.send_response(405)  # недопустимая комбинация
             self.end_headers()
+
 
     def serve_request(self):
         request_path: str = self.path
