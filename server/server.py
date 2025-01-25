@@ -42,7 +42,7 @@ class DatabaseInterface:
 class CloudServerRunner:
     def __init__(self, address: str, port: int, database: DatabaseInterface):
         self.database: DatabaseInterface = database
-        self.__httpd: HTTPServer = None
+        self.__httpd: typing.Optional[HTTPServer] = None
 
         def handler(*args):
             CloudServer(self, *args)
