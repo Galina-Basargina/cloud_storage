@@ -1,7 +1,28 @@
 from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 import argparse
+import psycopg2
 from pyexpat.errors import messages
+
+
+def database_connect(settings):
+    conn = psycopg2.connect(
+        dbname=settings["dbname"],
+        user=settings["user"],
+        password=settings["password"],
+        host=settings["host"],
+        port=settings["port"])
+    cur = conn.cursor()
+    cur.execute(f"SET search_path TO {settings['schema']}")
+    cur.close()
+    return conn
+
+
+def database_disconnect(conn):
+    if not conn.cursor().closed:
+        conn.cursor().close()
+    conn.close()
+    del conn
 
 
 class HttpGetHandler(BaseHTTPRequestHandler):
@@ -29,8 +50,25 @@ if __name__ == "__main__":
         epilog='python3 server.py --address=127.0.0.1 --port=8080')
     parser.add_argument('-a', '--address', help="Server address", default='*', dest="address")
     parser.add_argument('-p', '--port', help="HTTP port", default=8080, dest="port")
+    parser.add_argument('--dbname', help="Database name", default="postgres", dest="dbname")
+    parser.add_argument('--dbuser', help="Database user", default="postgres", dest="dbuser")
+    parser.add_argument('--dbpassword', help="Database password", default="password", dest="dbpassword")
+    parser.add_argument('--dbhost', help="Database host", default="localhost", dest="dbhost")
+    parser.add_argument('--dbport', help="Database port", default="5432", dest="dbport")
+    parser.add_argument('--dbschema', help="Database schema", default="public", dest="dbschema")
     args = parser.parse_args()
 
     print(f"Running server at {args.address}:{args.port}")
+
+    settings = {
+        'dbname': args.dbname,
+        'user': args.dbuser,
+        'password': args.dbpassword,
+        'host': args.dbhost,
+        'port': args.dbport,
+        'schema': args.dbschema
+    }
+    conn = database_connect(settings)
+    database_disconnect(conn)
 
     run('' if args.address == '*' else args.address, int(args.port))
