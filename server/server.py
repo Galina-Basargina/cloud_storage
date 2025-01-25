@@ -2,7 +2,21 @@ from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 import argparse
 import psycopg2
-from pyexpat.errors import messages
+import typing
+
+
+def database_execute(conn, query: str) -> None:
+    cur = conn.cursor()
+    cur.execute(query)
+    cur.close()
+
+
+def database_fetch_one(conn, query: str) -> typing.Any:
+    cur = conn.cursor()
+    cur.execute(query)
+    row = cur.fetchone()
+    cur.close()
+    return row
 
 
 def database_connect(settings):
@@ -12,13 +26,11 @@ def database_connect(settings):
         password=settings["password"],
         host=settings["host"],
         port=settings["port"])
-    cur = conn.cursor()
-    cur.execute(f"SET search_path TO {settings['schema']}")
-    cur.close()
+    database_execute(conn, f"SET search_path TO {settings['schema']}")
     return conn
 
 
-def database_disconnect(conn):
+def database_disconnect(conn) -> None:
     if not conn.cursor().closed:
         conn.cursor().close()
     conn.close()
@@ -58,17 +70,20 @@ if __name__ == "__main__":
     parser.add_argument('--dbschema', help="Database schema", default="public", dest="dbschema")
     args = parser.parse_args()
 
-    print(f"Running server at {args.address}:{args.port}")
-
     settings = {
         'dbname': args.dbname,
         'user': args.dbuser,
         'password': args.dbpassword,
         'host': args.dbhost,
         'port': args.dbport,
-        'schema': args.dbschema
-    }
+        'schema': args.dbschema}
     conn = database_connect(settings)
-    database_disconnect(conn)
+    version = database_fetch_one(conn, "SELECT version();")
+    print(f"Database connected: {version}")
 
+    print(f"Running server at {args.address}:{args.port}")
     run('' if args.address == '*' else args.address, int(args.port))
+    print(f"Server stopped")
+
+    database_disconnect(conn)
+    print(f"Database disconnected")
