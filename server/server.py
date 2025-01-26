@@ -46,6 +46,16 @@ class DatabaseInterface:
         cur.close()
         return row
 
+    def fetch_all(self, query: str, *args) -> typing.Any:
+        cur = self.__conn.cursor()
+        if isinstance(args, tuple) and len(args) == 1 and isinstance(args[0], dict):
+            cur.execute(query, args[0])
+        else:
+            cur.execute(query, args)
+        row = cur.fetchall()
+        cur.close()
+        return row
+
     def commit(self) -> None:
         self.__conn.commit()
 
@@ -117,13 +127,48 @@ class CloudServer(BaseHTTPRequestHandler):
             message = json.dumps(response)
             self.wfile.write(bytes(message, "utf8"))
         elif method == 'GET' and user_id is None:
-            pass
+            try:
+                rows = self.runner.database.fetch_all("select id,login from users;")
+                users = []
+                if rows is not None:
+                    users = [{"id": _[0], "login": _[1]} for _ in rows]
+                response = {'message': f'Handled {method} request', 'users': users}
+            except:
+                response = {'error': 'Error on users select'}
+            error: bool = 'error' in response
+            if error:
+                self.send_response(400)  # Bad request (=400)
+            else:
+                self.send_response(200)  # OK (=200)
+            self.end_headers()
+            message = json.dumps(response)
+            self.wfile.write(bytes(message, "utf8"))
         elif user_id is None:
             # id не указан, требуют или обновить, или удалить ресурс
             self.send_response(405)  # метод не разрешен
             self.end_headers()
         elif method == 'GET':
-            pass
+            user_found: typing.Optional[str] = None
+            try:
+                row = self.runner.database.fetch_one(
+                    "select login from users where id=%(id)s;",
+                    {'id': user_id})
+                response = {'message': f'Handled {method} request'}
+                if row is not None:
+                    user_found = row[0]
+                    response.update({'login': user_found})
+            except:
+                response = {'error': 'Error on user select'}
+            error: bool = 'error' in response
+            if error:
+                self.send_response(400)  # Bad request (=400)
+            elif not user_found:
+                self.send_response(404)  # Not Found (=404)
+            else:
+                self.send_response(200)  # OK (=200)
+            self.end_headers()
+            message = json.dumps(response)
+            self.wfile.write(bytes(message, "utf8"))
         elif method == 'PUT':
             # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
             self.send_response(405)  # недопустимая комбинация
@@ -136,7 +181,7 @@ class CloudServer(BaseHTTPRequestHandler):
             user_found: bool = False
             try:
                 row = self.runner.database.fetch_one(
-                    f"with deleted as (delete from users where id=%(id)s returning *) "
+                    "with deleted as (delete from users where id=%(id)s returning *) "
                     "select count(1) from deleted;", {'id': user_id})
                 user_found: bool = row[0] == 1
             except:
