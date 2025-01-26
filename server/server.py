@@ -151,8 +151,7 @@ class CloudServer(BaseHTTPRequestHandler):
             except:
                 response = {'error': 'Error on users select'}
             error: bool = 'error' in response
-            self.prepare_response(400 if error else 200,  # OK (=200), Bad request (=400)
-                                  data=response)
+            self.prepare_response(400 if error else 200, data=response)  # OK (=200), Bad request (=400)
         elif user_id is None:
             # id не указан, требуют или обновить, или удалить ресурс
             self.prepare_response(405)
