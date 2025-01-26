@@ -92,6 +92,22 @@ class CloudServer(BaseHTTPRequestHandler):
         self.runner: CloudServerRunner = runner
         BaseHTTPRequestHandler.__init__(self, *args)
 
+    def prepare_response(self,
+                         code: int,
+                         headers: typing.Optional[typing.Dict[str, str]] = None,
+                         data: typing.Optional[typing.Dict[str, typing.Any]] = None,
+                         message: typing.Optional[str] = None):
+        self.send_response(code)  # Created (=201), Bad request (=400)
+        if headers:
+            for key, val in headers.items():
+                self.send_header(key, val)
+        self.end_headers()
+        if data:
+            string = json.dumps(data)
+            self.wfile.write(bytes(string, "utf8"))
+        if message:
+            self.wfile.write(bytes(message, "utf8"))
+
     def serve_users(self, method: str, user_id: typing.Optional[int]):
         if method == 'POST' and user_id is None:
             if self.headers.get('Content-Type') != 'application/json':
@@ -119,13 +135,12 @@ class CloudServer(BaseHTTPRequestHandler):
                 else:
                     response = {'error': 'unsupported request, use login'}
             error: bool = 'error' in response
-            self.send_response(400 if error else 201)  # Created (=201), Bad request (=400)
-            self.send_header("Content-Type", "application/json")
+            headers = {"Content-Type": "application/json"}
             if not error:
-                self.send_header("Location", f"/users/{user_id}")
-            self.end_headers()
-            message = json.dumps(response)
-            self.wfile.write(bytes(message, "utf8"))
+                headers.update({"Location": f"/users/{user_id}"})
+            self.prepare_response(400 if error else 201,  # Created (=201), Bad request (=400)
+                                  headers=headers,
+                                  data=response)
         elif method == 'GET' and user_id is None:
             try:
                 rows = self.runner.database.fetch_all("select id,login from users;")
@@ -136,17 +151,11 @@ class CloudServer(BaseHTTPRequestHandler):
             except:
                 response = {'error': 'Error on users select'}
             error: bool = 'error' in response
-            if error:
-                self.send_response(400)  # Bad request (=400)
-            else:
-                self.send_response(200)  # OK (=200)
-            self.end_headers()
-            message = json.dumps(response)
-            self.wfile.write(bytes(message, "utf8"))
+            self.prepare_response(400 if error else 200,  # OK (=200), Bad request (=400)
+                                  data=response)
         elif user_id is None:
             # id не указан, требуют или обновить, или удалить ресурс
-            self.send_response(405)  # метод не разрешен
-            self.end_headers()
+            self.prepare_response(405)
         elif method == 'GET':
             user_found: typing.Optional[str] = None
             try:
@@ -161,22 +170,17 @@ class CloudServer(BaseHTTPRequestHandler):
                 response = {'error': 'Error on user select'}
             error: bool = 'error' in response
             if error:
-                self.send_response(400)  # Bad request (=400)
+                self.prepare_response(400, data=response)  # Bad request (=400)
             elif not user_found:
-                self.send_response(404)  # Not Found (=404)
+                self.prepare_response(404, data=response)  # Not Found (=404)
             else:
-                self.send_response(200)  # OK (=200)
-            self.end_headers()
-            message = json.dumps(response)
-            self.wfile.write(bytes(message, "utf8"))
+                self.prepare_response(200, data=response)  # OK (=200)
         elif method == 'PUT':
             # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
-            self.send_response(405)  # недопустимая комбинация
-            self.end_headers()
+            self.prepare_response(405)  # недопустимая комбинация
         elif method == 'PATCH':
             # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
-            self.send_response(405)  # недопустимая комбинация
-            self.end_headers()
+            self.prepare_response(405)  # недопустимая комбинация
         elif method == 'DELETE':
             user_found: bool = False
             try:
@@ -192,19 +196,14 @@ class CloudServer(BaseHTTPRequestHandler):
                 response = {'message': f'Handled {method} request'}
             error: bool = 'error' in response
             if error:
-                self.send_response(400)  # Bad request (=400)
+                self.prepare_response(400, data=response)  # Bad request (=400)
             elif not user_found:
-                self.send_response(404)  # Not Found (=404)
+                self.prepare_response(404, data=response)  # Not Found (=404)
             else:
-                self.send_response(200)  # OK (=200)
-            self.end_headers()
-            message = json.dumps(response)
-            self.wfile.write(bytes(message, "utf8"))
+                self.prepare_response(200, data=response)  # OK (=200)
         else:
             # например POST с id (нельзя создать пользователя, указав id)
-            self.send_response(405)  # недопустимая комбинация
-            self.end_headers()
-
+            self.prepare_response(405)  # недопустимая комбинация
 
     def serve_request(self):
         request_path: str = self.path
@@ -217,15 +216,12 @@ class CloudServer(BaseHTTPRequestHandler):
     def serve_get(self):
         request_path: str = self.path
         if request_path == '/favicon.ico':
-            self.send_response(200)
-            self.end_headers()
+            self.prepare_response(200)
             return
         elif request_path == '/':
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html")
-            self.end_headers()
-            message = f"Cloud access to files v1.0"
-            self.wfile.write(bytes(message, "utf8"))
+            self.prepare_response(200,
+                                  headers={"Content-Type": "text/html"},
+                                  message="Cloud access to files v1.0")
             return
         self.serve_request()
 
