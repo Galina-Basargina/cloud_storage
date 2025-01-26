@@ -20,7 +20,9 @@ def folders(server,
                     row = database.fetch_one(
                         "insert into folders(parent,owner,name)"
                         "select %(p)s,%(o)s,%(n)s "
-                        "where %(o)s in (select owner from folders where id=%(p)s) "
+                        "where"
+                        " %(o)s in (select owner from folders where id=%(p)s) and"
+                        " (select id from folders where parent=%(p)s and name=%(n)s) is null "
                         "returning id;", {
                             'p': request['parent'],
                             'o': int(owner_id),
