@@ -19,19 +19,23 @@ def folders(server,
                 try:
                     row = database.fetch_one(
                         "insert into folders(parent,owner,name)"
-                        "values(%(p)s,%(o)s,%(n)s)"
+                        "select %(p)s,%(o)s,%(n)s "
+                        "where %(o)s in (select owner from folders where id=%(p)s) "
                         "returning id;", {
                             'p': request['parent'],
                             'o': int(owner_id),
                             'n': request['name'],
                         })
+                    if row is None:
+                        database.rollback()
+                        response = {'error': 'Folder not created'}
+                    else:
+                        folder_id: int = int(row[0])
+                        response = {'message': f'Handled {method} request'}
+                        database.commit()
                 except:
                     database.rollback()
                     response = {'error': 'Folder not created'}
-                else:
-                    folder_id: int = int(row[0])
-                    database.commit()
-                    response = {'message': f'Handled {method} request'}
             else:
                 response = {'error': 'unsupported request, use name and parent id'}
         error: bool = 'error' in response
