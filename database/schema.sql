@@ -13,8 +13,8 @@ create table users(
 
 create table folders(
  id serial primary key,
- parent integer references folders(id),
- owner integer references users(id),
+ parent integer null references folders(id),
+ owner integer not null references users(id),
  name text not null
 );
 
