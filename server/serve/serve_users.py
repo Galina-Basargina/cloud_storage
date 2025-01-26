@@ -1,6 +1,7 @@
 import typing
 import json
 from .database import DatabaseInterface
+from .serve_folders import folders
 
 
 def users(server, database: DatabaseInterface, method: str, user_id: typing.Optional[int]):
@@ -13,6 +14,7 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
             request = json.loads(post_body)
             if 'login' in request and 'password_checksum' in request:
                 try:
+                    database.execute("begin transaction;")  # для выполнения одновременно нескольких действий
                     row = database.fetch_one(
                         "insert into users(login, password_checksum)"
                         f"values(%(login)s, %(pass)s) "
@@ -20,11 +22,14 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
                             'login': request['login'],
                             'pass': request['password_checksum'],
                         })
+                    user_id: int = int(row[0])
+                    database.execute(
+                        "insert into folders(parent,owner,name) values(null,%(u)s,'');",
+                        {'u': user_id})
                 except:
                     database.rollback()
                     response = {'error': 'User not created'}
                 else:
-                    user_id: int = int(row[0])
                     database.commit()
                     response = {'message': f'Handled {method} request'}
             else:
