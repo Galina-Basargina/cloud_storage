@@ -15,7 +15,8 @@ create table folders(
  id serial primary key,
  parent integer null references folders(id),
  owner integer not null references users(id),
- name text not null
+ name text not null,
+ constraint folders_unique unique (parent, name)
 );
 
 create table files (
