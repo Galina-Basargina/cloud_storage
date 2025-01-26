@@ -15,7 +15,7 @@ def folders(server,
             content_len = int(server.headers.get('Content-Length'))
             post_body = server.rfile.read(content_len)
             request = json.loads(post_body)
-            if 'parent' in request and 'name' in request:
+            if 'parent' in request and request['parent'] is not None and 'name' in request:
                 try:
                     row = database.fetch_one(
                         "insert into folders(parent,owner,name)"
