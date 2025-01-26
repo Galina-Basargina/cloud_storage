@@ -4,6 +4,7 @@ import argparse
 import typing
 import json
 from database import DatabaseInterface
+import serve_users
 
 
 class CloudServerRunner:
@@ -55,9 +56,9 @@ class CloudServer(BaseHTTPRequestHandler):
         request_path: str = self.path
         method: str = self.command.upper()
         if request_path == '/users':
-            self.serve_users(self, self.runner.database, method, None)
+            serve_users.users(self, self.runner.database, method, None)
         if request_path[:7] == '/users/':
-            self.serve_users(self, self.runner.database, method, int(request_path[7:]))
+            serve_users.users(self, self.runner.database, method, int(request_path[7:]))
 
     def serve_get(self):
         request_path: str = self.path

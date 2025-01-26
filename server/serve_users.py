@@ -4,7 +4,7 @@ from database import DatabaseInterface
 from server import CloudServer
 
 
-def serve_users(server: CloudServer, database: DatabaseInterface, method: str, user_id: typing.Optional[int]):
+def users(server: CloudServer, database: DatabaseInterface, method: str, user_id: typing.Optional[int]):
     if method == 'POST' and user_id is None:
         if server.headers.get('Content-Type') != 'application/json':
             response = {'error': 'unsupported Content-Type, use application/json'}
