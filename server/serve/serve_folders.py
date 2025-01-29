@@ -172,7 +172,7 @@ def folders(server,
         folder_found: bool = False
         try:
             row = database.fetch_one(
-                "with deleted as (delete from folders where id=%(id)s returning *) "
+                "with deleted as (delete from folders where id=%(id)s and parent is not null returning *) "
                 "select count(1) from deleted;", {'id': folder_id})
             folder_found: bool = row[0] == 1
         except:
