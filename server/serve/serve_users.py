@@ -1,7 +1,9 @@
 import typing
 import json
 from .database import DatabaseInterface
-from .serve_folders import folders
+
+
+g_headers_json = {"Content-Type": "application/json"}
 
 
 def users(server, database: DatabaseInterface, method: str, user_id: typing.Optional[int]):
@@ -51,7 +53,7 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
         except:
             response = {'error': 'Error on users select'}
         error: bool = 'error' in response
-        server.prepare_response(400 if error else 200, data=response)  # OK (=200), Bad request (=400)
+        server.prepare_response(400 if error else 200, g_headers_json, data=response)  # OK (=200), Bad request (=400)
     elif user_id is None:
         # id не указан, требуют или обновить, или удалить ресурс
         server.prepare_response(405)
@@ -69,11 +71,11 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
             response = {'error': 'Error on user select'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, data=response)  # Bad request (=400)
+            server.prepare_response(400, g_headers_json, data=response)  # Bad request (=400)
         elif not user_found:
-            server.prepare_response(404, data=response)  # Not Found (=404)
+            server.prepare_response(404, g_headers_json, data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, data=response)  # OK (=200)
+            server.prepare_response(200, g_headers_json, data=response)  # OK (=200)
     elif method == 'PUT':
         # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
         server.prepare_response(405)  # недопустимая комбинация
@@ -95,11 +97,11 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
             response = {'message': f'Handled {method} request'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, data=response)  # Bad request (=400)
+            server.prepare_response(400, g_headers_json, data=response)  # Bad request (=400)
         elif not user_found:
-            server.prepare_response(404, data=response)  # Not Found (=404)
+            server.prepare_response(404, g_headers_json, data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, data=response)  # OK (=200)
+            server.prepare_response(200, g_headers_json, data=response)  # OK (=200)
     else:
         # например POST с id (нельзя создать пользователя, указав id)
         server.prepare_response(405)  # недопустимая комбинация
