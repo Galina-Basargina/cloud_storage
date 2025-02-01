@@ -85,6 +85,12 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
     elif method == 'DELETE':
         user_found: bool = False
         try:
+            database.execute("begin transaction;")  # для выполнения одновременно нескольких действий
+            # удалить папки пользователя
+            database.execute("delete from folders "
+                             "where id in (select id from folders where \"owner\"=%(id)s;",
+                             {'id': user_id})
+            # удалить пользователя и вернуть строку
             row = database.fetch_one(
                 "with deleted as (delete from users where id=%(id)s returning *) "
                 "select count(1) from deleted;", {'id': user_id})

@@ -171,10 +171,21 @@ def folders(server,
     elif method == 'DELETE':
         folder_found: bool = False
         try:
-            row = database.fetch_one(
-                "with deleted as (delete from folders where id=%(id)s and parent is not null returning *) "
-                "select count(1) from deleted;", {'id': folder_id})
-            folder_found: bool = row[0] == 1
+            row = database.fetch_one("""
+with deleted as (
+ delete from folders where id in (
+  with recursive r(id) as (
+   select id,parent from folders 
+   where id=%(id)s and parent is not null -- except root folder
+  union 
+   select f.id,f.parent from folders f
+   join r on (f.parent=r.id)
+  )
+  select id from r
+ ) returning *
+) 
+select count(1) from deleted""", {'id': folder_id})
+            folder_found: bool = row[0] != 0
         except:
             database.rollback()
             response = {'error': 'Error on folder delete'}
