@@ -52,7 +52,10 @@ def folders(server,
                                 data=response)
     elif method == 'GET' and folder_id is None:
         try:
-            rows = database.fetch_all("select id,parent,owner,name from folders;")
+            rows = database.fetch_all("""
+select id,parent,owner,name
+from folders
+where %(o)s=owner;""", {'o': int(owner_id)})
             dirs = []
             if rows is not None:
                 dirs = [{"id": _[0], "parent": _[1], "owner": _[2], "name": _[3]} for _ in rows]
@@ -68,8 +71,10 @@ def folders(server,
         folder_found: bool = False
         try:
             row = database.fetch_one(
-                "select parent,owner,name from folders where id=%(id)s;",
-                {'id': folder_id})
+                """
+select parent,owner,name
+from folders
+where id=%(id)s and owner=%(o)s;""", {'id': folder_id, 'o': int(owner_id)})
             response = {'message': f'Handled {method} request'}
             if row is not None:
                 folder_found = True
@@ -176,7 +181,10 @@ with deleted as (
  delete from folders where id in (
   with recursive r(id) as (
    select id,parent from folders 
-   where id=%(id)s and parent is not null -- except root folder
+   where
+    id=%(id)s and 
+    parent is not null and -- except root folder
+    owner=%(o)s
   union 
    select f.id,f.parent from folders f
    join r on (f.parent=r.id)
@@ -184,7 +192,7 @@ with deleted as (
   select id from r
  ) returning *
 ) 
-select count(1) from deleted""", {'id': folder_id})
+select count(1) from deleted""", {'id': folder_id, 'o': int(owner_id)})
             folder_found: bool = row[0] != 0
         except:
             database.rollback()
