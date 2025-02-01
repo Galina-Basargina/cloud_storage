@@ -2,6 +2,7 @@ drop table if exists shares_folders;
 drop table if exists shares_files;
 drop table if exists files;
 drop table if exists folders;
+drop table if exists auth;
 drop table if exists users;
 
 
@@ -9,6 +10,11 @@ create table users(
  id serial primary key,
  login text not null unique,
  password_checksum text not null
+);
+
+create table auth(
+ logged_in integer not null references users(id),
+ access_token text not null unique
 );
 
 create table folders(

@@ -5,6 +5,7 @@ import json
 from .database import DatabaseInterface
 from .serve_users import users
 from .serve_folders import folders
+from .serve_auth import login, auth
 
 
 class CloudServerRunner:
@@ -55,14 +56,25 @@ class CloudServer(BaseHTTPRequestHandler):
     def serve_request(self):
         request_path: str = self.path
         method: str = self.command.upper()
-        if request_path == '/users':
+        # не защищенные запросы
+        if request_path == '/auth/login':
+            login(self, self.runner.database, method)
+        elif request_path == '/users':
             users(self, self.runner.database, method, None)
-        elif request_path[:7] == '/users/':
-            users(self, self.runner.database, method, int(request_path[7:]))
-        elif request_path == '/folders':
-            folders(self, self.runner.database, method, None, owner_id=19)
-        elif request_path[:9] == '/folders/':
-            folders(self, self.runner.database, method, int(request_path[9:]), owner_id=19)
+        # защищенные запросы
+        else:
+            authorized_id: typing.Optional[int] = auth(self, self.runner.database)
+            if authorized_id is None:
+                self.prepare_response(
+                    401,  # Unauthorized (=401)
+                    headers={"Content-Type": "application/json"},
+                    data={'error': 'unauthorized'})
+            elif request_path == '/users/me':
+                users(self, self.runner.database, method, user_id=authorized_id)
+            elif request_path == '/folders':
+                folders(self, self.runner.database, method, None, owner_id=authorized_id)
+            elif request_path[:9] == '/folders/':
+                folders(self, self.runner.database, method, int(request_path[9:]), owner_id=authorized_id)
 
     def serve_get(self):
         request_path: str = self.path
