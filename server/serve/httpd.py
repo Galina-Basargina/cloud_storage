@@ -5,6 +5,7 @@ import json
 from .database import DatabaseInterface
 from .serve_users import users
 from .serve_folders import folders
+from .serve_files import files
 from .serve_auth import login, auth
 
 
@@ -75,6 +76,10 @@ class CloudServer(BaseHTTPRequestHandler):
                 folders(self, self.runner.database, method, None, owner_id=authorized_id)
             elif request_path[:9] == '/folders/':
                 folders(self, self.runner.database, method, int(request_path[9:]), owner_id=authorized_id)
+            elif request_path == '/files':
+                files(self, self.runner.database, method, None, owner_id=authorized_id)
+            elif request_path[:7] == '/files/':
+                files(self, self.runner.database, method, int(request_path[7:]), owner_id=authorized_id)
 
     def serve_get(self):
         request_path: str = self.path

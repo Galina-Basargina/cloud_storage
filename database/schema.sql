@@ -34,7 +34,7 @@ create table files (
  url_filename text not null, -- уникальное имя файла для веба
  filesize integer not null,
  content_type text not null, -- тип файла для веба
- upload_date timestamp not null default current_date
+ upload_date timestamp not null default current_timestamp
 );
 
 create table shares_files(

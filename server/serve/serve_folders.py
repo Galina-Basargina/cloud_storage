@@ -164,7 +164,7 @@ where id=%(id)s and owner=%(o)s;""", {'id': folder_id, 'o': int(owner_id)})
                     database.rollback()
                     response = {'error': 'Folder not updated'}
             else:
-                response = {'error': 'unsupported request, use name and parent id'}
+                response = {'error': 'unsupported request, use name or parent id'}
         # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
         error: bool = 'error' in response
         if error:
