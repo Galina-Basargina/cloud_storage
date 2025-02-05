@@ -38,7 +38,7 @@ where
  {check_original_filename}
 returning id;""", {
                             'o': int(owner_id),
-                            'f': request['folder'],
+                            'f': request.get('folder'),
                             'of': request.get('original_filename'),  # может быть None
                             'sf': f"/var/lib/cloud_storage/{server_filename}",
                             'uf': f"/filedata/{server_filename}",
@@ -128,16 +128,45 @@ where id=%(id)s and owner=%(o)s;""", {'id': file_id, 'o': int(owner_id)})
             post_body = server.rfile.read(content_len)
             request = json.loads(post_body)
             query: typing.List[str] = []
-            if 'folder' in request and request['folder'] is not None:
-                query.append("folder=%(f)s")
-            if 'original_filename' in request:
-                query.append("original_filename=%(of)s")
-            if query:
+            command: str = ""
+            if request.get('folder') and request.get('original_filename'):
+                command: str = """
+update files set
+ folder=%(f)s,
+ original_filename=%(of)s
+where
+ id=%(id)s and
+ owner=%(o)s and
+ (select original_filename from files where folder=%(f)s and original_filename=%(of)s) is null
+returning id;"""
+            elif request.get('folder'):
+                command: str = """
+update files set folder=%(f)s
+where
+ id=%(id)s and
+ owner=%(o)s and
+ (select id from files
+  where
+   folder=%(f)s and
+   original_filename=(select original_filename from files where id=%(id)s)
+ ) is null
+returning id;"""
+            elif request.get('original_filename'):
+                command: str = """
+update files set original_filename=%(of)s
+where
+ id=%(id)s and
+ owner=%(o)s and
+ (select original_filename from files
+  where
+   original_filename=%(of)s and
+   folder=(select folder from files where id=%(id)s)
+ ) is null
+returning id;"""
+            if command != "":
                 try:
                     row = database.fetch_one(
-                        f"update files set {','.join(query)} "
-                        "where id=%(id)s and owner=%(o)s "
-                        "returning id;", {
+                        command, {
                             'f': request.get('folder'),
                             'of': request.get('original_filename'),
                             'o': int(owner_id),
