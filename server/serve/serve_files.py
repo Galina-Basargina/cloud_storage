@@ -127,7 +127,6 @@ where id=%(id)s and owner=%(o)s;""", {'id': file_id, 'o': int(owner_id)})
             content_len = int(server.headers.get('Content-Length'))
             post_body = server.rfile.read(content_len)
             request = json.loads(post_body)
-            query: typing.List[str] = []
             command: str = ""
             if request.get('folder') and request.get('original_filename'):
                 command: str = """
