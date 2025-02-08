@@ -30,8 +30,8 @@ create table files (
  owner integer not null references users(id),
  folder integer null references folders(id), -- корневая это null
  original_filename text, -- исходное имя файла, если известно
- server_filename text not null, -- путь к файлу на сервере (в БД только ссылка)
- url_filename text not null, -- уникальное имя файла для веба
+ server_filename text not null unique, -- путь к файлу на сервере (в БД только ссылка)
+ url_filename text not null unique, -- уникальное имя файла для веба
  filesize integer not null,
  content_type text not null, -- тип файла для веба
  upload_date timestamp not null default current_timestamp

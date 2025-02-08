@@ -1,5 +1,13 @@
+import os
 import argparse
 from serve import DatabaseInterface, CloudServerRunner
+
+
+def dir_path(path):
+    if os.path.isdir(path):
+        return path
+    else:
+        raise argparse.ArgumentTypeError(f"{path} is not a valid path")
 
 
 if __name__ == "__main__":
@@ -15,6 +23,7 @@ if __name__ == "__main__":
     parser.add_argument('--dbhost', help="Database host", default="localhost", dest="dbhost")
     parser.add_argument('--dbport', help="Database port", default="5432", dest="dbport")
     parser.add_argument('--dbschema', help="Database schema", default="public", dest="dbschema")
+    parser.add_argument('--storage', help="Files storage", dest="storage", type=dir_path)
     args = parser.parse_args()
 
     settings = {
@@ -33,7 +42,8 @@ if __name__ == "__main__":
     cloud = CloudServerRunner(
         address='' if args.address == '*' else args.address,
         port=int(args.port),
-        database=db)
+        database=db,
+        storage=args.storage)
     del cloud
     print(f"Server stopped")
 

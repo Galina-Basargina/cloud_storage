@@ -10,6 +10,7 @@ g_headers_json = {"Content-Type": "application/json"}
 
 def files(server,
           database: DatabaseInterface,
+          storage: str,
           method: str,
           file_id: typing.Optional[int],
           owner_id: int):
@@ -25,6 +26,8 @@ def files(server,
                 server_filename: str = f"{request['folder']}:{request['original_filename']}:{salt}"
                 server_filename = hashlib.sha256(server_filename.encode("utf-8")).hexdigest()
                 check_original_filename: str = ""
+                if storage[-1] == '/':
+                    storage = storage[:-1]
                 if request.get('original_filename') is not None:
                     check_original_filename: str = \
                         "and (select id from files where folder=%(f)s and original_filename=%(of)s) is null"
@@ -40,7 +43,7 @@ returning id;""", {
                             'o': int(owner_id),
                             'f': request.get('folder'),
                             'of': request.get('original_filename'),  # может быть None
-                            'sf': f"/var/lib/cloud_storage/{server_filename}",
+                            'sf': f"{storage}/{server_filename}",
                             'uf': f"/filedata/{server_filename}",
                             'fs': int(256),
                             'c': request['content_type'],
@@ -63,7 +66,7 @@ returning id;""", {
             headers.update({"Location": f"/files/{file_id}"})
         server.prepare_response(400 if error else 201,  # Created (=201), Bad request (=400)
                                 headers=headers,
-                                data=response)
+                                json_data=response)
     elif method == 'GET' and file_id is None:
         try:
             rows = database.fetch_all("""
@@ -85,7 +88,7 @@ where %(o)s=owner;""", {'o': int(owner_id)})
         except:
             response = {'error': 'Error on files select'}
         error: bool = 'error' in response
-        server.prepare_response(400 if error else 200, data=response)  # OK (=200), Bad request (=400)
+        server.prepare_response(400 if error else 200, json_data=response)  # OK (=200), Bad request (=400)
     elif file_id is None:
         # id не указан, требуют или обновить, или удалить ресурс
         server.prepare_response(405)
@@ -111,11 +114,11 @@ where id=%(id)s and owner=%(o)s;""", {'id': file_id, 'o': int(owner_id)})
             response = {'error': 'Error on file select'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, data=response)  # Bad request (=400)
+            server.prepare_response(400, json_data=response)  # Bad request (=400)
         elif not file_found:
-            server.prepare_response(404, data=response)  # Not Found (=404)
+            server.prepare_response(404, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, data=response)  # OK (=200)
+            server.prepare_response(200, json_data=response)  # OK (=200)
     elif method == 'PUT':
         # пока заблокированная возможность
         server.prepare_response(405)
@@ -186,11 +189,11 @@ returning id;"""
         # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, data=response)  # Bad request (=400)
+            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
         elif not_found:
-            server.prepare_response(404, g_headers_json, data=response)  # Not Found (=404)
+            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(204, g_headers_json, data=response)  # No Content (=204)
+            server.prepare_response(204, g_headers_json, json_data=response)  # No Content (=204)
     elif method == 'DELETE':
         file_found: bool = False
         try:
@@ -207,11 +210,44 @@ select count(1) from deleted;""", {'id': file_id, 'o': int(owner_id)})
             response = {'message': f'Handled {method} request'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, data=response)  # Bad request (=400)
+            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
         elif not file_found:
-            server.prepare_response(404, g_headers_json, data=response)  # Not Found (=404)
+            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, g_headers_json, data=response)  # OK (=200)
+            server.prepare_response(200, g_headers_json, json_data=response)  # OK (=200)
     else:
         # например POST с id (нельзя создать папку, указав id)
         server.prepare_response(405)  # недопустимая комбинация
+
+
+def filedata(server,
+             database: DatabaseInterface,
+             request_path: str,
+             owner_id: int):
+    try:
+        row = database.fetch_one("""
+select owner,server_filename,content_type
+from files
+where url_filename=%(uf)s;""", {'uf': request_path})
+        database.commit()
+        if row is None:
+            server.prepare_response(404)  # Not Found (=404)
+        elif int(row[0]) != int(owner_id):
+            server.prepare_response(403)  # Forbidden (=403)
+        else:
+            server_filename: str = str(row[1])
+            content_type: str = str(row[2])
+            try:
+                f = open(server_filename, mode='rb')
+                bin = f.read()
+                f.close()
+                server.prepare_response(
+                    200,
+                    headers={"Content-Type": content_type},
+                    bytes_data=bin)  # OK (=200)
+            except:
+                server.prepare_response(404)  # Not Found (=404)
+    except:
+        database.rollback()
+        server.prepare_response(500)  # Internal Server Error (=500)
+

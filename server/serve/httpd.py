@@ -5,14 +5,15 @@ import json
 from .database import DatabaseInterface
 from .serve_users import users
 from .serve_folders import folders
-from .serve_files import files
+from .serve_files import files, filedata
 from .serve_auth import login, auth
 
 
 class CloudServerRunner:
-    def __init__(self, address: str, port: int, database: DatabaseInterface):
+    def __init__(self, address: str, port: int, database: DatabaseInterface, storage: str):
         self.database: DatabaseInterface = database
         self.__httpd: typing.Optional[HTTPServer] = None
+        self.storage: str = storage
 
         def handler(*args):
             return CloudServer(self, *args)
@@ -41,18 +42,21 @@ class CloudServer(BaseHTTPRequestHandler):
     def prepare_response(self,
                          code: int,
                          headers: typing.Optional[typing.Dict[str, str]] = None,
-                         data: typing.Optional[typing.Dict[str, typing.Any]] = None,
-                         message: typing.Optional[str] = None):
+                         json_data: typing.Optional[typing.Dict[str, typing.Any]] = None,
+                         text_message: typing.Optional[str] = None,
+                         bytes_data: typing.Optional[bytes] = None):
         self.send_response(code)  # Created (=201), Bad request (=400)
         if headers:
             for key, val in headers.items():
                 self.send_header(key, val)
         self.end_headers()
-        if data:
-            string = json.dumps(data)
+        if json_data:
+            string = json.dumps(json_data)
             self.wfile.write(bytes(string, "utf8"))
-        if message:
-            self.wfile.write(bytes(message, "utf8"))
+        elif text_message:
+            self.wfile.write(bytes(text_message, "utf8"))
+        elif bytes_data is not None:
+            self.wfile.write(bytes_data)
 
     def serve_request(self):
         request_path: str = self.path
@@ -69,7 +73,7 @@ class CloudServer(BaseHTTPRequestHandler):
                 self.prepare_response(
                     401,  # Unauthorized (=401)
                     headers={"Content-Type": "application/json"},
-                    data={'error': 'unauthorized'})
+                    json_data={'error': 'unauthorized'})
             elif request_path == '/users/me':
                 users(self, self.runner.database, method, user_id=authorized_id)
             elif request_path == '/folders':
@@ -79,7 +83,9 @@ class CloudServer(BaseHTTPRequestHandler):
             elif request_path == '/files':
                 files(self, self.runner.database, method, None, owner_id=authorized_id)
             elif request_path[:7] == '/files/':
-                files(self, self.runner.database, method, int(request_path[7:]), owner_id=authorized_id)
+                files(self, self.runner.database, self.runner.storage, method, int(request_path[7:]), owner_id=authorized_id)
+            elif method == "GET" and request_path[:10] == '/filedata/':
+                filedata(self, self.runner.database, request_path, owner_id=authorized_id)
 
     def serve_get(self):
         request_path: str = self.path
@@ -89,7 +95,7 @@ class CloudServer(BaseHTTPRequestHandler):
         elif request_path == '/':
             self.prepare_response(200,
                                   headers={"Content-Type": "text/html"},
-                                  message="Cloud access to files v1.0")
+                                  text_message="Cloud access to files v1.0")
             return
         self.serve_request()
 

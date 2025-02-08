@@ -43,7 +43,7 @@ where login=%(l)s and password_checksum=%(p)s;""", {'l': request['login'], 'p': 
         error: bool = 'error' in response
         server.prepare_response(401 if error else 200,  # OK (=200), Unauthorized (=401)
                                 headers=g_headers_json,
-                                data=response)
+                                json_data=response)
     else:
         # все остальные типы запросов недопустимы при авторизации
         server.prepare_response(405)  # недопустимая комбинация

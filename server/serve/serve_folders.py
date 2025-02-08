@@ -49,7 +49,7 @@ def folders(server,
             headers.update({"Location": f"/folders/{folder_id}"})
         server.prepare_response(400 if error else 201,  # Created (=201), Bad request (=400)
                                 headers=headers,
-                                data=response)
+                                json_data=response)
     elif method == 'GET' and folder_id is None:
         try:
             rows = database.fetch_all("""
@@ -63,7 +63,7 @@ where %(o)s=owner;""", {'o': int(owner_id)})
         except:
             response = {'error': 'Error on folders select'}
         error: bool = 'error' in response
-        server.prepare_response(400 if error else 200, data=response)  # OK (=200), Bad request (=400)
+        server.prepare_response(400 if error else 200, json_data=response)  # OK (=200), Bad request (=400)
     elif folder_id is None:
         # id не указан, требуют или обновить, или удалить ресурс
         server.prepare_response(405)
@@ -83,11 +83,11 @@ where id=%(id)s and owner=%(o)s;""", {'id': folder_id, 'o': int(owner_id)})
             response = {'error': 'Error on folder select'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, data=response)  # Bad request (=400)
+            server.prepare_response(400, json_data=response)  # Bad request (=400)
         elif not folder_found:
-            server.prepare_response(404, data=response)  # Not Found (=404)
+            server.prepare_response(404, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, data=response)  # OK (=200)
+            server.prepare_response(200, json_data=response)  # OK (=200)
     elif method == 'PUT':
         not_found: bool = True
         if server.headers.get('Content-Type') != 'application/json':
@@ -124,11 +124,11 @@ where id=%(id)s and owner=%(o)s;""", {'id': folder_id, 'o': int(owner_id)})
         # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, data=response)  # Bad request (=400)
+            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
         elif not_found:
-            server.prepare_response(404, g_headers_json, data=response)  # Not Found (=404)
+            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(204, g_headers_json, data=response)  # No Content (=204)
+            server.prepare_response(204, g_headers_json, json_data=response)  # No Content (=204)
     elif method == 'PATCH':
         not_found: bool = True
         if server.headers.get('Content-Type') != 'application/json':
@@ -137,17 +137,56 @@ where id=%(id)s and owner=%(o)s;""", {'id': folder_id, 'o': int(owner_id)})
             content_len = int(server.headers.get('Content-Length'))
             post_body = server.rfile.read(content_len)
             request = json.loads(post_body)
-            query: typing.List[str] = []
-            if 'parent' in request and request['parent'] is not None:
-                query.append("parent=%(p)s")
-            if 'name' in request:
-                query.append("name=%(n)s")
-            if query:
+            # query: typing.List[str] = []
+            command: str = ""
+
+            if request.get('parent') and request.get('name'):
+                command: str = """
+update folders set
+ parent=%(p)s,
+ name=%(n)s
+where
+ id=%(id)s and
+ owner=%(o)s and
+ (select name from folders where parent=%(p)s and name=%(n)s) is null
+returning id;"""
+            elif request.get('parent'):
+                command: str = """
+update folders set parent=%(p)s
+where
+ id=%(id)s and
+ owner=%(o)s and
+ (select id from folders
+  where
+   parent=%(p)s and
+   name=(select name from folders where id=%(id)s)
+ ) is null
+returning id;"""
+            elif request.get('name'):
+                command: str = """
+update folders set name=%(n)s
+where
+ id=%(id)s and
+ owner=%(o)s and
+ (select name from folders
+  where
+   name=%(n)s and
+   parent=(select parent from folders where id=%(id)s)
+ ) is null
+returning id;"""
+
+
+            # if 'parent' in request and request['parent'] is not None:
+            #     query.append("parent=%(p)s")
+            # if 'name' in request:
+            #     query.append("name=%(n)s")
+            if command != "":
                 try:
                     row = database.fetch_one(
-                        f"update folders set {','.join(query)} "
-                        "where id=%(id)s and owner=%(o)s "
-                        "returning id;", {
+                        # f"update folders set {','.join(query)} "
+                        # "where id=%(id)s and owner=%(o)s "
+                        # "returning id;",
+                        command, {
                             'p': request.get('parent'),
                             'id': int(folder_id),
                             'n': request.get('name'),
@@ -168,11 +207,11 @@ where id=%(id)s and owner=%(o)s;""", {'id': folder_id, 'o': int(owner_id)})
         # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, data=response)  # Bad request (=400)
+            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
         elif not_found:
-            server.prepare_response(404, g_headers_json, data=response)  # Not Found (=404)
+            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(204, g_headers_json, data=response)  # No Content (=204)
+            server.prepare_response(204, g_headers_json, json_data=response)  # No Content (=204)
     elif method == 'DELETE':
         folder_found: bool = False
         try:
@@ -202,11 +241,11 @@ select count(1) from deleted""", {'id': folder_id, 'o': int(owner_id)})
             response = {'message': f'Handled {method} request'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, data=response)  # Bad request (=400)
+            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
         elif not folder_found:
-            server.prepare_response(404, g_headers_json, data=response)  # Not Found (=404)
+            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, g_headers_json, data=response)  # OK (=200)
+            server.prepare_response(200, g_headers_json, json_data=response)  # OK (=200)
     else:
         # например POST с id (нельзя создать папку, указав id)
         server.prepare_response(405)  # недопустимая комбинация
