@@ -1,15 +1,15 @@
-<!DOCTYPE html>
+<?php if (true) { ?><!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вход | Cloud Storage</title>
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <div class="logo">
-            <a href="/"><img src="/logo-e0e0e0.png" alt="Cloud Logo"></a>
+            <a href="index.html"><img src="logo-e0e0e0.png" alt="Cloud Logo"></a>
         </div>
         
         <h1>Вход в систему</h1>
@@ -37,7 +37,7 @@
 
         <div class="links">
             <a href="#">Забыли пароль?</a>
-            <a href="/register.html">Создать новый аккаунт</a>
+            <a href="register.html">Создать новый аккаунт</a>
         </div>
     </div>
 
@@ -73,3 +73,5 @@
     </script>
 </body>
 </html>
+<?php } else { ?>
+<?php } ?>
