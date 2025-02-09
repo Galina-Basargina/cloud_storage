@@ -17,7 +17,7 @@ def login(server, database: DatabaseInterface, method: str):
             request = json.loads(post_body)
             if 'login' in request and 'password' in request:
                 try:
-                    checksum: str = hashlib.md5("password".encode("utf-8")).hexdigest()
+                    checksum: str = hashlib.md5(request["password"].encode("utf-8")).hexdigest()
                     row = database.fetch_one("""
 select id,current_timestamp
 from users

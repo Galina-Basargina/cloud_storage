@@ -37,7 +37,7 @@
 
         <div class="links">
             <a href="#">Забыли пароль?</a>
-            <a href="/register.php">Создать новый аккаунт</a>
+            <a href="/register.html">Создать новый аккаунт</a>
         </div>
     </div>
 

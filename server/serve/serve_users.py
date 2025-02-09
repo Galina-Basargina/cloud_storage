@@ -1,5 +1,6 @@
 import typing
 import json
+import hashlib
 from .database import DatabaseInterface
 
 
@@ -14,15 +15,16 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
             content_len = int(server.headers.get('Content-Length'))
             post_body = server.rfile.read(content_len)
             request = json.loads(post_body)
-            if 'login' in request and 'password_checksum' in request:
+            if 'login' in request and 'password' in request:
+                checksum: str = hashlib.md5(request["password"].encode("utf-8")).hexdigest()
                 try:
                     database.execute("begin transaction;")  # для выполнения одновременно нескольких действий
                     row = database.fetch_one(
                         "insert into users(login, password_checksum)"
-                        f"values(%(login)s, %(pass)s) "
+                        f"values(%(l)s, %(p)s) "
                         "returning id;", {
-                            'login': request['login'],
-                            'pass': request['password_checksum'],
+                            'l': request['login'],
+                            'p': checksum,
                         })
                     user_id: int = int(row[0])
                     database.execute(

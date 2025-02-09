@@ -17,7 +17,7 @@
         <form id="registrationForm">
             <div class="form-group-register">
                 <label>Имя пользователя</label>
-                <input type="text" required>
+                <input type="text" id="login" required>
             </div>
 
             <div class="form-group-register">
@@ -27,7 +27,7 @@
 
             <div class="form-group-register">
                 <label>Пароль</label>
-                <input type="password" required minlength="8">
+                <input type="password" id="password" required minlength="8">
                 <div class="password-rules">Минимум 8 символов, включая цифры и спецсимволы</div>
             </div>
 
@@ -40,15 +40,33 @@
         </form>
 
         <div class="login-link">
-            Уже есть аккаунт? <a href="/login.php">Войти</a>
+            Уже есть аккаунт? <a href="/index.php">Войти</a>
         </div>
     </div>
 
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
         document.getElementById('registrationForm').addEventListener('submit', function(e) {
+            e.stopPropagation();
             e.preventDefault();
-            // Здесь можно добавить логику обработки формы
-            alert('Форма успешно отправлена!');
+            $.ajax({
+                url: '/users',
+                method: 'post',
+                async:false,
+                contentType: 'application/json',
+                data: JSON.stringify({login: $(this).find('#login').val(), password: $(this).find('#password').val()}),
+                success: function(data){alert('Регистрация прошла успешно');},
+                error: function (jqXHR, exception) {
+                if (jqXHR.status === 0) alert('Not connect. Verify Network.');
+                else if (jqXHR.status == 400) alert('Ошибка создания пользователя: ' + jqXHR.responseText);
+                else if (jqXHR.status == 404) alert('Requested page not found (404).');
+                else if (jqXHR.status == 500) alert('Internal Server Error (500).');
+                else if (exception === 'parsererror') alert('Requested JSON parse failed.'); // некорректный ввод post-params => return в .php, нет данных
+                else if (exception === 'timeout') alert('Time out error.'); // сервер завис?
+                else if (exception === 'abort') alert('Ajax request aborted.');
+                else alert('Uncaught Error. ' + jqXHR.responseText);
+                }
+            });
         });
     </script>
 </body>
