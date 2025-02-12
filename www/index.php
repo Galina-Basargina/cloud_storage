@@ -24,12 +24,12 @@ if (empty($token)) { ?><!DOCTYPE html>
         <h1>Вход в систему</h1>
         
         <form id="loginForm">
-            <div class="form-group-login">
+            <div class="form-group">
                 <label>Имя пользователя</label>
                 <input type="text" id="login" name="login" required>
             </div>
 
-            <div class="form-group-login">
+            <div class="form-group">
                 <label>Пароль</label>
                 <input type="password" id="password" name="password" required>
                 <span class="password-toggle" onclick="togglePassword()">👁</span>
@@ -91,7 +91,7 @@ if (empty($token)) { ?><!DOCTYPE html>
 </body>
 </html>
 <?php } else { //phpinfo(); ?>
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -136,16 +136,21 @@ if (empty($token)) { ?><!DOCTYPE html>
         // Mock данные
         const fileStructure = {
             folders: [
-                { name: 'Документы', path: '/documents' },
-                { name: 'Изображения', path: '/images' },
-                { name: 'Музыка', path: '/music' }
-            ],
-            files: [
-                { name: 'report.pdf', type: 'pdf' },
-                { name: 'photo.jpg', type: 'image' },
-                { name: 'song.mp3', type: 'audio' }
+                {name: 'Домашняя папка', path: '/home'}
             ]
+            // folders: [
+            //     { name: 'Документы', path: '/documents' },
+            //     { name: 'Изображения', path: '/images' },
+            //     { name: 'Музыка', path: '/music' }
+            // ],
+            // files: [
+            //     { name: 'report.pdf', type: 'pdf' },
+            //     { name: 'photo.jpg', type: 'image' },
+            //     { name: 'song.mp3', type: 'audio' }
+            // ]
         };
+
+        // функция по отправке GET запроса и получением папок со страктурой {name, parent}
 
         // Инициализация
         function init() {

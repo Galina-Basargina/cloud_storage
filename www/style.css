@@ -41,10 +41,7 @@ h1 {
     font-size: 2.2rem;
 }
 
-.form-group-register {
-    margin-bottom: 25px;
-}
-.form-group-login {
+.form-group {
     margin-bottom: 25px;
     position: relative;
 }
@@ -77,6 +74,23 @@ input:focus {
     font-size: 0.8rem;
     color: #888888;
     margin-top: 5px;
+}
+
+#strength-text {
+    font-size: 11px;
+    text-align: center;
+}
+
+.weak {
+    background-color: #C90000 !important;
+}
+
+.medium {
+    background-color: #d6a000 !important;
+}
+
+.strong {
+    background-color: #00903a !important;
 }
 
 .terms {
