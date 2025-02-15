@@ -30,7 +30,7 @@
                 <label>Пароль</label>
                 <input type="password" id="password" required minlength="6">
                 <span class="password-toggle" onclick="togglePassword()">👁</span>
-                <div id="strength-text"></div>
+                <div id="strength-text" class="password-rules"></div>
             </div>
 
             <div class="terms">
@@ -63,7 +63,6 @@
             if (password.length < 6) {
                 return {
                     score: 0,
-                    class: 'weak password-rules',
                     message: 'Пароль слишком короткий (минимум 6 символов)',
                     color: '#ff4444'
                 };
@@ -85,7 +84,6 @@
             if (score === 1) 
                 return {
                     score: 1,
-                    class: 'weak password-rules',
                     message: 'Ненадежный пароль',
                     color: '#ff4444'
                 };
@@ -93,7 +91,6 @@
             else if (score <= 3) 
                 return {
                     score: 2,
-                    class: 'medium password-rules',
                     message: 'Средняя надежность',
                     color: '#ffc107'
                 };
@@ -101,7 +98,6 @@
             else if (score > 3) 
                 return {
                     score: 3,
-                    class: 'strong password-rules',
                     message: 'Надежный пароль',
                     color: '#00C851'
                 };
@@ -113,7 +109,6 @@
             strength = validatePassword(password);
             
             // Обновляем индикатор
-            strengthText.className = strength.class;
             strengthText.textContent = strength.message;
             strengthText.style.color = strength.color;
         }
