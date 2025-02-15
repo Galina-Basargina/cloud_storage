@@ -63,7 +63,7 @@ where %(o)s=owner;""", {'o': int(owner_id)})
         except:
             response = {'error': 'Error on folders select'}
         error: bool = 'error' in response
-        server.prepare_response(400 if error else 200, json_data=response)  # OK (=200), Bad request (=400)
+        server.prepare_response(400 if error else 200, headers=g_headers_json, json_data=response)  # OK (=200), Bad request (=400)
     elif folder_id is None:
         # id не указан, требуют или обновить, или удалить ресурс
         server.prepare_response(405)
@@ -83,11 +83,11 @@ where id=%(id)s and owner=%(o)s;""", {'id': folder_id, 'o': int(owner_id)})
             response = {'error': 'Error on folder select'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, json_data=response)  # Bad request (=400)
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
         elif not folder_found:
-            server.prepare_response(404, json_data=response)  # Not Found (=404)
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, json_data=response)  # OK (=200)
+            server.prepare_response(200, headers=g_headers_json, json_data=response)  # OK (=200)
     elif method == 'PUT':
         not_found: bool = True
         if server.headers.get('Content-Type') != 'application/json':
@@ -124,11 +124,11 @@ where id=%(id)s and owner=%(o)s;""", {'id': folder_id, 'o': int(owner_id)})
         # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
         elif not_found:
-            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(204, g_headers_json, json_data=response)  # No Content (=204)
+            server.prepare_response(204, headers=g_headers_json, json_data=response)  # No Content (=204)
     elif method == 'PATCH':
         not_found: bool = True
         if server.headers.get('Content-Type') != 'application/json':
@@ -207,11 +207,11 @@ returning id;"""
         # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
         elif not_found:
-            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(204, g_headers_json, json_data=response)  # No Content (=204)
+            server.prepare_response(204, headers=g_headers_json, json_data=response)  # No Content (=204)
     elif method == 'DELETE':
         folder_found: bool = False
         try:
@@ -241,11 +241,11 @@ select count(1) from deleted""", {'id': folder_id, 'o': int(owner_id)})
             response = {'message': f'Handled {method} request'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
         elif not folder_found:
-            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, g_headers_json, json_data=response)  # OK (=200)
+            server.prepare_response(200, headers=g_headers_json, json_data=response)  # OK (=200)
     else:
         # например POST с id (нельзя создать папку, указав id)
         server.prepare_response(405)  # недопустимая комбинация

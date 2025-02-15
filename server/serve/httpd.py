@@ -81,7 +81,7 @@ class CloudServer(BaseHTTPRequestHandler):
             elif request_path[:9] == '/folders/':
                 folders(self, self.runner.database, method, int(request_path[9:]), owner_id=authorized_id)
             elif request_path == '/files':
-                files(self, self.runner.database, method, None, owner_id=authorized_id)
+                files(self, self.runner.database, self.runner.storage, method=method, file_id=None, owner_id=authorized_id)
             elif request_path[:7] == '/files/':
                 files(self, self.runner.database, self.runner.storage, method, int(request_path[7:]), owner_id=authorized_id)
             elif method == "GET" and request_path[:10] == '/filedata/':

@@ -132,100 +132,50 @@ if (empty($token)) { ?><!DOCTYPE html>
     </div>
 
     <script src="storage.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
-        // Mock данные
-        const fileStructure = {
-            folders: [
-                {name: 'Домашняя папка', path: '/home'}
-            ]
-            // folders: [
-            //     { name: 'Документы', path: '/documents' },
-            //     { name: 'Изображения', path: '/images' },
-            //     { name: 'Музыка', path: '/music' }
-            // ],
-            // files: [
-            //     { name: 'report.pdf', type: 'pdf' },
-            //     { name: 'photo.jpg', type: 'image' },
-            //     { name: 'song.mp3', type: 'audio' }
-            // ]
-        };
-
-        // функция по отправке GET запроса и получением папок со страктурой {name, parent}
-
         // Инициализация
-        function init() {
-            renderFolderTree();
-            renderFiles();
-        }
-
-        // Отрисовка дерева папок
-        function renderFolderTree() {
-            const tree = document.getElementById('folderTree');
-            tree.innerHTML = fileStructure.folders.map(folder => `
-                <li class="folder-item" onclick="selectFolder('${folder.path}')">
-                    <i class="fas fa-folder"></i> ${folder.name}
-                </li>
-            `).join('');
-        }
-
-        // Отрисовка файлов
-        function renderFiles() {
-            const grid = document.getElementById('fileGrid');
-            grid.innerHTML = fileStructure.files.map(file => `
-                <div class="file-item" ondblclick="openFile('${file.name}')">
-                    <i class="${getFileIcon(file.type)} file-icon"></i>
-                    <div>${file.name}</div>
-                </div>
-            `).join('');
-        }
-
-        // Выбор папки
-        function selectFolder(path) {
-            const items = document.querySelectorAll('.folder-item');
-            items.forEach(item => item.classList.remove('selected'));
-            event.currentTarget.classList.add('selected');
-            // Здесь можно добавить загрузку содержимого папки
-        }
-
-        // Получение иконки для файла
-        function getFileIcon(type) {
-            const icons = {
-                pdf: 'fas fa-file-pdf',
-                image: 'fas fa-file-image',
-                audio: 'fas fa-file-audio',
-                default: 'fas fa-file'
-            };
-            return icons[type] || icons.default;
+        function init() {    
+            modelGetData();
+            viewChangeFolder();
         }
 
         // Функция выхода
         function logout() {
-            if(confirm('Вы действительно хотите выйти?')) {
-                deleteCookie('token');
-                refreshPage();
-            }
+            if(!confirm('Вы действительно хотите выйти?')) return;
+            deleteCookie('token');
+            refreshPage();
         }
 
         // Дополнительные функции
         function createNewFolder() {
             const name = prompt('Введите название папки:');
-            if (name) {
-                fileStructure.folders.push({ name, path: `/${name.toLowerCase()}` });
-                renderFolderTree();
-            }
+            if (!name) return;
+            modelCreateFolder(name);
         }
 
         function uploadFile() {
-            alert('Функция загрузки файла');
-        }
-
-        function openFile(filename) {
-            alert(`Открытие файла: ${filename}`);
+            // создание элемента input для выбора файла (одного)
+            var input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = false;
+            input.onchange = e => {
+                // событие выбора файла
+                var file = e.target.files[0];
+                // начинаем читать данные файла
+                var reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = readerEvent => {
+                    // событие успешного прочтения данных файла
+                    var content = readerEvent.target.result;
+                    modelUploadFile(file.name, file.size, file.type, content);
+                }
+            }
+            input.click();
         }
 
         // Инициализация при загрузке
         window.onload = init;
     </script>
 </body>
-</html>
-<?php } ?>
+</html><?php } ?>

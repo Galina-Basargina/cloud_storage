@@ -266,6 +266,22 @@ with deleted as (
 
 При реализации работы с файлами было замечено, что еще не сделана проверка на наличие файла (папки) с таким же названием в одном и местоположении.
 
+В процессе работы над моделью данных потребовалось загружать данные из корневой папки, но без идентификатора это сделать невозможно. Потребовались данные о корневой папке пользователя, поэтому пришлось поменять запрос о получении информации о пользователе:
+
+```sql
+-- раньше
+select login from users where id=31;
+
+-- стало
+select
+ login,
+ f.id as root_folder
+from
+ users u
+  join folders f on (f.owner = u.id and f.parent is null)
+where u.id=31;
+```
+
 ## Веб-доступ к облачному хранилищу
 
 Несмотря на то, что был изготовлен http сервер для работы с файлами и папками, все же это внутренний функционал системы, построенный на базе rest-запросов. Для того, чтобы сделать активную часть сайта (обложка, регистрация пользователя, список папок и файлов), изобретать велосипед не буду, воспользуюсь языком программирования php. При этом веб-сервер буду использовать nginx. А запросы с веб-сервера на мой http-сервер буду проксировать (на эту тему у нас были лабораторные работы в конце января 2025 года)
@@ -389,6 +405,41 @@ sudo systemctl restart nginx
 
 
 /var/www/cloud_storage$ sudo ln /home/galina/Workspace/cloud_storage/www/logo-e0e0e0.png logo-e0e0e0.png
+
+## Получение содержимого файла
+
+Потребовалось сделать свой собственный proxy, который берёт token из cookie и url из параметров, после чего отправляет запрос на свой собственный сервер, получает результат, выделяет из него данные и content_type, отправляя его обратно в качестве ответа.
+
+```php
+// получение полного url, например http://127.0.0.1:80/filedata/image.jpg
+$url = $_SERVER['REQUEST_SCHEME']."://".$_SERVER['REMOTE_ADDR'].":".$_SERVER['SERVER_PORT'].$url;
+// настройка авторизации для получения файла
+$opts = array('http'=>array(
+  'method'=>'GET',
+  'header'=>"Authorization: Bearer $token\r\n"
+));
+// настройка запроса, который будет отправляться из этого скрипта
+$context = stream_context_create($opts);
+// отправка запроса
+$file = file_get_contents($url, false, $context);
+// получение заголовков отввета
+$headers = implode("\n", $http_response_header);
+// получение content_type
+if (preg_match_all("/^content-type\s*:\s*(.*)$/mi", $headers, $matches)) {
+  // если content_type удалось получить, то отправляем данные файла
+  $content_type = end($matches[1]);
+  header("Content-Type: $content_type");
+  // вывод изображения
+  echo $file;
+}
+```
+
+Пример выше укорочен, в нем нет обработки ошибок, полный пример смотри в приложении с исходными кодами.
+https://stackoverflow.com/questions/25237100/how-to-get-mime-type-of-an-image-with-file-get-contents-in-php
+
+## Загрузка файлов
+
+https://stackoverflow.com/a/40971885
 
 
 # План:

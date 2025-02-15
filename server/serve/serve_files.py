@@ -1,7 +1,10 @@
+import sys
 import datetime
 import hashlib
 import typing
 import json
+import base64
+import binascii
 from .database import DatabaseInterface
 
 
@@ -21,43 +24,55 @@ def files(server,
             content_len = int(server.headers.get('Content-Length'))
             post_body = server.rfile.read(content_len)
             request = json.loads(post_body)
-            if 'folder' in request and request['folder'] is not None:
-                salt: str = datetime.datetime.now().isoformat()
-                server_filename: str = f"{request['folder']}:{request['original_filename']}:{salt}"
-                server_filename = hashlib.sha256(server_filename.encode("utf-8")).hexdigest()
-                check_original_filename: str = ""
-                if storage[-1] == '/':
-                    storage = storage[:-1]
-                if request.get('original_filename') is not None:
-                    check_original_filename: str = \
-                        "and (select id from files where folder=%(f)s and original_filename=%(of)s) is null"
+            if request.get('folder') is not None and request.get('base64') is not None:
+                base64_data = request['base64']
+                if ';base64,' in base64_data:
+                    __header, base64_data = base64_data.split(';base64,')
                 try:
-                    row = database.fetch_one(
-                        f"""
+                    decoded_file = base64.b64decode(base64_data)
+                except (TypeError, binascii.Error, ValueError):
+                    response = {'error': 'unsupported request, invalid file data'}
+                else:
+                    salt: str = datetime.datetime.now().isoformat()
+                    server_filename: str = f"{request['folder']}:{request['original_filename']}:{salt}"
+                    server_filename = hashlib.sha256(server_filename.encode("utf-8")).hexdigest()
+                    check_original_filename: str = ""
+                    if storage[-1] == '/':
+                        storage = storage[:-1]
+                    if request.get('original_filename') is not None:
+                        check_original_filename: str = \
+                            "and (select id from files where folder=%(f)s and original_filename=%(of)s) is null"
+                    try:
+                        row = database.fetch_one(
+                            f"""
 insert into files("owner",folder,original_filename,server_filename,url_filename,filesize,content_type)
 select %(o)s,%(f)s,%(of)s,%(sf)s,%(uf)s,%(fs)s,%(c)s 
 where
  %(o)s in (select owner from folders where id=%(f)s)
  {check_original_filename}
 returning id;""", {
-                            'o': int(owner_id),
-                            'f': request.get('folder'),
-                            'of': request.get('original_filename'),  # может быть None
-                            'sf': f"{storage}/{server_filename}",
-                            'uf': f"/filedata/{server_filename}",
-                            'fs': int(256),
-                            'c': request['content_type'],
-                        })
-                    if row is None:
+                                'o': int(owner_id),
+                                'f': request.get('folder'),
+                                'of': request.get('original_filename'),  # может быть None
+                                'sf': f"{storage}/{server_filename}",
+                                'uf': f"/filedata/{server_filename}",
+                                'fs': sys.getsizeof(decoded_file),
+                                'c': request['content_type'],
+                            })
+                        if row is None:
+                            database.rollback()
+                            response = {'error': 'File not created'}
+                        else:
+                            file_id: int = int(row[0])
+                            response = {'message': f'Handled {method} request'}
+                            database.commit()
+                            # сохранение данных файла
+                            with open(f"{storage}/{server_filename}", "wb+") as f:
+                                f.write(decoded_file)
+                                f.close()
+                    except:
                         database.rollback()
                         response = {'error': 'File not created'}
-                    else:
-                        file_id: int = int(row[0])
-                        response = {'message': f'Handled {method} request'}
-                        database.commit()
-                except:
-                    database.rollback()
-                    response = {'error': 'File not created'}
             else:
                 response = {'error': 'unsupported request, use folder id'}
         error: bool = 'error' in response
@@ -88,7 +103,7 @@ where %(o)s=owner;""", {'o': int(owner_id)})
         except:
             response = {'error': 'Error on files select'}
         error: bool = 'error' in response
-        server.prepare_response(400 if error else 200, json_data=response)  # OK (=200), Bad request (=400)
+        server.prepare_response(400 if error else 200, headers=g_headers_json, json_data=response)  # OK (=200), Bad request (=400)
     elif file_id is None:
         # id не указан, требуют или обновить, или удалить ресурс
         server.prepare_response(405)
@@ -114,11 +129,11 @@ where id=%(id)s and owner=%(o)s;""", {'id': file_id, 'o': int(owner_id)})
             response = {'error': 'Error on file select'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, json_data=response)  # Bad request (=400)
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
         elif not file_found:
-            server.prepare_response(404, json_data=response)  # Not Found (=404)
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, json_data=response)  # OK (=200)
+            server.prepare_response(200, headers=g_headers_json, json_data=response)  # OK (=200)
     elif method == 'PUT':
         # пока заблокированная возможность
         server.prepare_response(405)
@@ -189,11 +204,11 @@ returning id;"""
         # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
         elif not_found:
-            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(204, g_headers_json, json_data=response)  # No Content (=204)
+            server.prepare_response(204, headers=g_headers_json, json_data=response)  # No Content (=204)
     elif method == 'DELETE':
         file_found: bool = False
         try:
@@ -210,11 +225,11 @@ select count(1) from deleted;""", {'id': file_id, 'o': int(owner_id)})
             response = {'message': f'Handled {method} request'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
         elif not file_found:
-            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, g_headers_json, json_data=response)  # OK (=200)
+            server.prepare_response(200, headers=g_headers_json, json_data=response)  # OK (=200)
     else:
         # например POST с id (нельзя создать папку, указав id)
         server.prepare_response(405)  # недопустимая комбинация

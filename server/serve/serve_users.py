@@ -55,7 +55,7 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
         except:
             response = {'error': 'Error on users select'}
         error: bool = 'error' in response
-        server.prepare_response(400 if error else 200, g_headers_json, json_data=response)  # OK (=200), Bad request (=400)
+        server.prepare_response(400 if error else 200, headers=g_headers_json, json_data=response)  # OK (=200), Bad request (=400)
     elif user_id is None:
         # id не указан, требуют или обновить, или удалить ресурс
         server.prepare_response(405)
@@ -63,21 +63,29 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
         user_found: typing.Optional[str] = None
         try:
             row = database.fetch_one(
-                "select login from users where id=%(id)s;",
+                """
+select
+ login,
+ f.id as root_folder
+from
+ users u
+  join folders f on (f.owner = u.id and f.parent is null)
+where u.id=%(id)s;""",
                 {'id': user_id})
             response = {'message': f'Handled {method} request'}
             if row is not None:
                 user_found = row[0]
-                response.update({'login': user_found})
+                root_folder = row[1]
+                response.update({'login': user_found, 'root_folder': root_folder})
         except:
             response = {'error': 'Error on user select'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
         elif not user_found:
-            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, g_headers_json, json_data=response)  # OK (=200)
+            server.prepare_response(200, headers=g_headers_json, json_data=response)  # OK (=200)
     elif method == 'PUT':
         # 200 (OK) or 204 (No Content). Use 404 (Not Found), if ID is not found or invalid
         server.prepare_response(405)  # недопустимая комбинация
@@ -105,11 +113,11 @@ def users(server, database: DatabaseInterface, method: str, user_id: typing.Opti
             response = {'message': f'Handled {method} request'}
         error: bool = 'error' in response
         if error:
-            server.prepare_response(400, g_headers_json, json_data=response)  # Bad request (=400)
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
         elif not user_found:
-            server.prepare_response(404, g_headers_json, json_data=response)  # Not Found (=404)
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(200, g_headers_json, json_data=response)  # OK (=200)
+            server.prepare_response(200, headers=g_headers_json, json_data=response)  # OK (=200)
     else:
         # например POST с id (нельзя создать пользователя, указав id)
         server.prepare_response(405)  # недопустимая комбинация
