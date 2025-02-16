@@ -367,7 +367,11 @@ JavaScript во время своей работы будет отправлят
 
 Полное взаимодействие гораздо сложнее, например страница регистрации тоже отправляет запрос на Cloud Server, что на диаграмме не показано.
 
-## Настройка nginx
+## Настройка VPS в интернете
+
+![[Настройка Arch Linux]]
+
+### Настройка nginx (Debian), php
 
 ```bash
 sudo apt install nginx
@@ -401,6 +405,121 @@ sudo ln -s /etc/nginx/sites-available/cloud-storage \
            /etc/nginx/sites-enabled/cloud-storage
 
 sudo systemctl restart nginx
+```
+
+### Настройка nginx (Arch), php и Cloud Storage
+
+```bash
+sudo pacman -S nginx
+pacman -Ss php | grep fpm # поиск пакета php?.?-fpm
+sudo pacman -S php-fpm
+sudo pacman -S git
+
+sudo systemctl enable nginx
+sudo systemctl start nginx
+sudo systemctl enable php-fpm
+sudo systemctl start php-fpm
+
+sudo ufw allow 80/tcp comment "www"
+
+# на ноутбуке: проверить, что открывается сайт http://336707.simplecloud.ru
+
+# в файле /etc/nginx/nginx.conf найти и закомментировать server { }
+# в конец секции http добавить строку include /etc/nginx/sites-enabled/*;
+
+sudo mkdir -p /opt/cloud_storage
+cd /opt/cloud_storage
+sudo git clone https://github.com/Galina-Basargina/cloud_storage.git .
+
+sudo mkdir -p /etc/nginx/sites-available
+sudo mkdir -p /etc/nginx/sites-enabled
+sudo tee <<EOF /etc/nginx/sites-available/cloud-storage >/dev/null
+server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
+	root /opt/cloud_storage/www;
+	index index.html index.htm index.php;
+	server_name 336707.simplecloud.ru;
+	location / {
+		try_files \$uri \$uri/ =404;
+	}
+	location ~ ^/(auth/login|users|folders|files|filedata/) {
+		proxy_pass http://127.0.0.1:8080;
+	}
+	location ~ \.php\$ {
+		#include snippets/fastcgi-php.conf;
+		fastcgi_split_path_info ^(.+?\.php)(/.*)\$;
+		try_files \$fastcgi_script_name =404;
+		set \$path_info \$fastcgi_path_info;
+		fastcgi_param PATH_INFO \$path_info;
+		fastcgi_index index.php;
+		include fastcgi.conf;
+		fastcgi_pass unix:/run/php-fpm/php-fpm.sock;
+	}
+	location ~ /\.ht {
+		deny all;
+	}
+	client_max_body_size 20M;
+}
+EOF
+
+sudo ln -s /etc/nginx/sites-available/cloud-storage \
+           /etc/nginx/sites-enabled/cloud-storage
+```
+
+Настройка REST CloudServer:
+
+```bash
+sudo pacman -S python3
+sudo pacman -S postgresql
+sudo pacman -S python-psycopg2
+sudo pacman -S screen
+
+# создание базы данных от имени postgres с правами postgres
+sudo -S -u postgres initdb -D /var/lib/postgres/data
+
+# запуск сервера баз данных
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+sudo systemctl status postgresql
+
+# создание базы данных и пользователя
+sudo -S -u postgres psql postgres postgres
+# команды из /opt/cloud_storage/database/001.create_db.sql
+# CREATE DATABASE cs_db WITH ENCODING = 'UTF8' CONNECTION LIMIT = -1;
+# CREATE USER cs_user WITH LOGIN PASSWORD 'cs_m5SJaMkbZ7d9' NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
+# GRANT ALL ON DATABASE cs_db TO cs_user;
+
+# создание схемы базы данных
+cd /opt/cloud_storage/database
+sudo -S -u postgres psql --file=002.create_schema.sql cs_db cs_user
+
+# настройка python, установка зависимостей
+cd /opt/cloud_storage/server
+sudo python3 -m venv .venv
+sudo .venv/bin/python -m pip install -r requirements.txt
+
+# выдаем права на сохранение загруженных файлов
+sudo chmod 775 /opt/cloud_storage/files
+sudo chown root:$USER /opt/cloud_storage/files
+
+# проверка, что сервер запускается
+cd /opt/cloud_storage/server
+.venv/bin/python server.py \
+	--address=127.0.0.1 --port=8080 \
+	--dbname=cs_db --dbuser=cs_user \
+	--dbpassword=cs_m5SJaMkbZ7d9 --dbschema=coursework \
+	--storage=/opt/cloud_storage/files
+# Database connected: ('PostgreSQL 17.2 on x86_64-pc-linux-gnu, 
+# compiled by gcc (GCC) 14.2.1 20250128, 64-bit',)
+# Running server at 127.0.0.1:8080
+# ^C
+# Server stopped
+# Database disconnected
+
+screen
+# cd /opt/cloud_storage/server
+# команда запуска сервера
 ```
 
 
@@ -439,7 +558,51 @@ https://stackoverflow.com/questions/25237100/how-to-get-mime-type-of-an-image-wi
 
 ## Загрузка файлов
 
+Загрузка делится на две части: действия в браузере и действия на сервере. В браузере выбирается файл, получаются его параметры и содержимое, отправляется на сервер. На сервере файл принимается (все данные передаются в json-формате, поэтому файл передается как base64).
+
+```js
+function uploadFile() {
+  // создание элемента input для выбора файла (одного)
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = false;
+  input.onchange = e => {
+    // событие выбора файла
+    var file = e.target.files[0];
+    // начинаем читать данные файла
+    var reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = readerEvent => {
+    // событие успешного прочтения данных файла
+    var content = readerEvent.target.result;
+    modelUploadFile(file.name, file.size, file.type, content);
+    }
+}
+input.click();
+}
+```
+
 https://stackoverflow.com/a/40971885
+
+```python
+base64_data = request['base64']  
+if ';base64,' in base64_data:  
+	__header, base64_data = base64_data.split(';base64,')  
+try:  
+	decoded_file = base64.b64decode(base64_data)  
+except (TypeError, binascii.Error, ValueError):  
+	response = {'error': 'unsupported request, invalid file data'}
+#...
+with open(f"{storage}/{server_filename}", "wb+") as f:  
+	f.write(decoded_file)  
+	f.close()
+```
+
+для снятия ограничения на длину загрузки файлов необходимо в настройки nginx.conf добавить:
+
+```txt
+client_max_body_size 20M;
+```
 
 
 # План:

@@ -30,7 +30,8 @@ function getHttpCode($header): int {
 }
 
 // получение полного url, например http://127.0.0.1:80/filedata/image.jpg
-$url = $_SERVER['REQUEST_SCHEME']."://".$_SERVER['REMOTE_ADDR'].":".$_SERVER['SERVER_PORT'].$url;
+//$url = $_SERVER['REQUEST_SCHEME']."://".$_SERVER['REMOTE_ADDR'].":".$_SERVER['SERVER_PORT'].$url;
+$url = "http://127.0.0.1:8080".$url;
 // настройка авторизации для получения файла
 $opts = array('http'=>array(
     'method'=>'GET',
