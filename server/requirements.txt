@@ -3,4 +3,4 @@ requests
 datetime
 urllib3
 python-dateutil
-psycopg2
+psycopg2-binary
