@@ -208,7 +208,7 @@ returning id;"""
         elif not_found:
             server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
         else:
-            server.prepare_response(204, headers=g_headers_json, json_data=response)  # No Content (=204)
+            server.prepare_response(200, headers=g_headers_json, json_data=response)  # OK (=200)
     elif method == 'DELETE':
         file_found: bool = False
         try:

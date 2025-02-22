@@ -113,11 +113,20 @@ if (empty($token)) { ?><!DOCTYPE html>
         <div class="main-content">
             <div class="header">
                 <div>
-                    <button class="button" onclick="createNewFolder()">
+                    <button class="button" onclick="onCreateNewFolder()">
                         <i class="fas fa-folder-plus"></i> Новая папка
                     </button>
-                    <button class="button" onclick="uploadFile()">
+                    <button class="button" onclick="onUploadFile()">
                         <i class="fas fa-upload"></i> Загрузить
+                    </button>
+                    <button class="button disabled-button" id="btn_open" onclick="onOpenFile()">
+                        <i class="fas fa-download"></i> Открыть
+                    </button>
+                    <button class="button disabled-button" id="btn_rename" onclick="onRenameFile()">
+                        <i class="fas fa-edit"></i> Переименовать
+                    </button>
+                    <button class="button disabled-button" id="btn_delete" onclick="onDeleteFile()">
+                        <i class="fas fa-trash"></i> Удалить
                     </button>
                 </div>
                 <button class="button logout-btn" onclick="logout()">
@@ -145,33 +154,6 @@ if (empty($token)) { ?><!DOCTYPE html>
             if(!confirm('Вы действительно хотите выйти?')) return;
             deleteCookie('token');
             refreshPage();
-        }
-
-        // Дополнительные функции
-        function createNewFolder() {
-            const name = prompt('Введите название папки:');
-            if (!name) return;
-            modelCreateFolder(name);
-        }
-
-        function uploadFile() {
-            // создание элемента input для выбора файла (одного)
-            var input = document.createElement('input');
-            input.type = 'file';
-            input.multiple = false;
-            input.onchange = e => {
-                // событие выбора файла
-                var file = e.target.files[0];
-                // начинаем читать данные файла
-                var reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = readerEvent => {
-                    // событие успешного прочтения данных файла
-                    var content = readerEvent.target.result;
-                    modelUploadFile(file.name, file.size, file.type, content);
-                }
-            }
-            input.click();
         }
 
         // Инициализация при загрузке

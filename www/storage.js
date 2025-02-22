@@ -97,6 +97,17 @@ function modelStoreFiles(folder_id, data){
     })
 }
 
+// Поиск данных файла по id
+function modelFindFileById(file_id) {
+    var res = null;
+    modelData.files.forEach((file) => { 
+        if (file.id == file_id){
+            res = file;
+        }
+    })
+    return res;
+}
+
 // загружает данные модели по указанной папке
 // если произойдет ошибка авторизации, страница перезагружается
 function modelGetFoldersAndFiles(folder_id){
@@ -220,6 +231,7 @@ function modelCreateFolder(name){
             if (jqXHR.status === 0) alert('Not connect. Verify Network.');
             else if (jqXHR.status == 401) logoutOnAuthError();
             else if (jqXHR.status == 404) alert('Requested page not found (404).');
+            else if (jqXHR.status == 400) alert('Bad request (400).');
             else if (jqXHR.status == 500) alert('Internal Server Error (500).');
             else if (exception === 'parsererror') alert('Requested JSON parse failed.'); // некорректный ввод post-params => return в .php, нет данных
             else if (exception === 'timeout') alert('Time out error.'); // сервер завис?
@@ -252,6 +264,61 @@ function modelUploadFile(name, size, content_type, content){
             if (jqXHR.status === 0) alert('Not connect. Verify Network.');
             else if (jqXHR.status == 401) logoutOnAuthError();
             else if (jqXHR.status == 404) alert('Requested page not found (404).');
+            else if (jqXHR.status == 400) alert('Bad request (400).');
+            else if (jqXHR.status == 500) alert('Internal Server Error (500).');
+            else if (exception === 'parsererror') alert('Requested JSON parse failed.'); // некорректный ввод post-params => return в .php, нет данных
+            else if (exception === 'timeout') alert('Time out error.'); // сервер завис?
+            else if (exception === 'abort') alert('Ajax request aborted.');
+            else alert('Uncaught Error. ' + jqXHR.responseText);
+        }
+    });
+}
+
+// переименование файла и перезагрузка модели
+function modelRenameFile(file_id, file_name) {
+    $.ajax({
+        url: '/files/'+file_id,
+        method: 'patch',
+        async: false,
+        contentType: 'application/json',
+        headers: {'Authorization': 'Bearer '+getCookie('token')},
+        data: JSON.stringify({original_filename: file_name}),
+        success: function(data){
+            modelGetFoldersAndFiles(modelData.current_folder.id);
+            viewChangeFolder();
+        },
+        error: function (jqXHR, exception) {
+            if (jqXHR.status === 0) alert('Not connect. Verify Network.');
+            else if (jqXHR.status == 401) logoutOnAuthError();
+            else if (jqXHR.status == 404) alert('Requested file not found (404).');
+            else if (jqXHR.status == 400) alert('Bad request (400).');
+            else if (jqXHR.status == 500) alert('Internal Server Error (500).');
+            else if (exception === 'parsererror') alert('Requested JSON parse failed.'); // некорректный ввод post-params => return в .php, нет данных
+            else if (exception === 'timeout') alert('Time out error.'); // сервер завис?
+            else if (exception === 'abort') alert('Ajax request aborted.');
+            else alert('Uncaught Error. ' + jqXHR.responseText);
+        }
+    });
+}
+
+// удаление файла и перезагрузка модели
+function modelDeleteFile(file_id) {
+    $.ajax({
+        url: '/files/'+file_id,
+        method: 'delete',
+        async: false,
+        contentType: 'application/json',
+        headers: {'Authorization': 'Bearer '+getCookie('token')},
+        // data: JSON.stringify({}),
+        success: function(data){
+            modelGetFoldersAndFiles(modelData.current_folder.id);
+            viewChangeFolder();
+        },
+        error: function (jqXHR, exception) {
+            if (jqXHR.status === 0) alert('Not connect. Verify Network.');
+            else if (jqXHR.status == 401) logoutOnAuthError();
+            else if (jqXHR.status == 404) alert('Requested file not found (404).');
+            else if (jqXHR.status == 400) alert('Bad request (400).');
             else if (jqXHR.status == 500) alert('Internal Server Error (500).');
             else if (exception === 'parsererror') alert('Requested JSON parse failed.'); // некорректный ввод post-params => return в .php, нет данных
             else if (exception === 'timeout') alert('Time out error.'); // сервер завис?
@@ -264,6 +331,10 @@ function modelUploadFile(name, size, content_type, content){
 //---------- ----------
 // используем модель для обновления информации на странице (VIEW)
 //---------- ----------
+
+var viewData = {
+    selected_file_id: null,
+};
 
 // Получение иконки для файла
 function viewGetFileIcon(content_type) {
@@ -283,19 +354,112 @@ function viewGetFileIcon(content_type) {
     return icons[type] || icons.default;
 }
 
+// отключение доступа к кнопкам переименования и удаления файлов
+function disableFileButtons() {
+    viewData.selected_file_id = null;
+    $('#btn_rename, #btn_delete, #btn_open').each(function(index, element){
+        $(this).addClass("disabled-button");
+    });
+}
+
+// включение доступа к кнопкам переименования и удаления файлов
+function enableFileButtons(file_id) {
+    viewData.selected_file_id = file_id;
+    $('#btn_rename, #btn_delete, #btn_open').each(function(index, element){
+        $(this).removeClass("disabled-button");
+    });
+}
+
 // вызывается при клике на папку
 function onSelectFolder(folder_id){
     modelGetFoldersAndFiles(folder_id);
     viewChangeFolder();
+    disableFileButtons();
 }
 
-// вызывается при клике на файл
+// вызывается при двойном клике на файл
 function onSelectFile(file_id){
     file = modelData.files.find((file) => {
         return file.id == file_id;
     });
     if (!(file === undefined))
         window.open('filedata.php?url='+file.url_filename, '_blank').focus();
+}
+
+// вызывается при одинарном клике на файл
+function onClickFile(file_id){
+    $('div.file-item').each(function(index, element){
+        $(this).removeClass("file-selected");
+    });
+    $('div.file-item:hover').addClass("file-selected");
+    enableFileButtons(file_id);
+}
+
+// Нажатие на кнопку создания папки
+function onCreateNewFolder() {
+    const name = prompt('Введите название папки:');
+    if (!name) return;
+    modelCreateFolder(name);
+}
+
+// Нажатие на кнопку загрузки файла
+function onUploadFile() {
+    // создание элемента input для выбора файла (одного)
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = false;
+    input.onchange = e => {
+        // событие выбора файла
+        var file = e.target.files[0];
+        // начинаем читать данные файла
+        var reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = readerEvent => {
+            // событие успешного прочтения данных файла
+            var content = readerEvent.target.result;
+            modelUploadFile(file.name, file.size, file.type, content);
+        }
+    }
+    input.click();
+}
+
+// Вызывается при нажатии на кнопку открытия файла
+function onOpenFile() {
+    var btn = $('#btn_open');
+    $('#btn_open.disabled-button').each(function(){ btn = undefined; });
+    if (btn === undefined) return;
+    if (viewData.selected_file_id === null) return;
+    onSelectFile(viewData.selected_file_id);
+}
+
+// вызывается при переименовании файла
+function onRenameFile() {
+    var btn = $('#btn_rename');
+    $('#btn_rename.disabled-button').each(function(){ btn = undefined; });
+    if (btn === undefined) return;
+    if (viewData.selected_file_id === null) return;
+
+    var file = modelFindFileById(viewData.selected_file_id);
+    if (file === null) return;
+
+    const name = prompt('Введите название файла:', file.original_filename);
+    if (!name) return;
+    modelRenameFile(viewData.selected_file_id, name);
+    disableFileButtons();
+}
+
+// вызывается при удалении файла
+function onDeleteFile() {
+    var btn = $('#btn_delete');
+    $('#btn_delete.disabled-button').each(function(){ btn = undefined; });
+    if (btn === undefined) return;
+    if (viewData.selected_file_id === null) return;
+
+    var answer = window.confirm("Уверены, что хотите удалить файл?");
+    if (!answer) return;
+
+    modelDeleteFile(viewData.selected_file_id);
+    disableFileButtons();
 }
 
 // обновляет содержимое страницы
@@ -322,11 +486,9 @@ function viewChangeFolder(){
     // отрисовка файлов
     const grid = document.getElementById('fileGrid');
     grid.innerHTML = modelData.files.map(file => `
-        <div class="file-item" ondblclick="onSelectFile(${file.id})">
+        <div class="file-item" ondblclick="onSelectFile(${file.id})" onclick="onClickFile(${file.id})">
             <i class="${viewGetFileIcon(file.content_type)} file-icon"></i>
             <div>${file.original_filename}</div>
         </div>
     `).join(''); 
 }
-
-

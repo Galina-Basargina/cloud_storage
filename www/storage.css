@@ -3,6 +3,7 @@
     --accent-red: #8B0000;
     --text-primary: #ffffff;
     --hover-bg: #3a3a3a;
+    --selected-bg: #444;
 }
 
 * {
@@ -80,6 +81,15 @@ body {
     padding: 10px 15px;
 }
 
+.disabled-button {
+    color: #242424;
+    cursor: initial;
+}
+
+.disabled-button:hover {
+    background-color: var(--accent-red);
+}
+
 /* Сетка файлов */
 .file-grid {
     display: grid;
@@ -108,6 +118,7 @@ body {
 }
 
 /* Выбранные элементы */
-.selected {
-    background-color: var(--accent-red) !important;
+.file-selected {
+    background-color: var(--selected-bg);
+    transform: translateY(-3px);
 }
