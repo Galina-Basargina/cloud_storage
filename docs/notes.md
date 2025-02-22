@@ -604,6 +604,20 @@ with open(f"{storage}/{server_filename}", "wb+") as f:
 client_max_body_size 20M;
 ```
 
+## Java Android
+
+Изначально для добавления в проект сетевого взаимодействия потребовалось сделать первые шаги отсюда: https://stackoverflow.com/a/39385674
+
+Простейший пример с использованием retrofit: https://github.com/square/retrofit/blob/trunk/samples/src/main/java/com/example/retrofit/SimpleService.java
+
+Использование retrofit привело к сбою android.os.NetworkOnMainThreadException при отправке запроса из основного Activity - так нельзя. Решение вот: https://stackoverflow.com/a/35482308
+
+Пример работы с Rest-запросами: https://habr.com/ru/articles/428736/
+
+Пример отправки POST-запроса: https://www.csharp.com/article/call-post-api-in-android-using-retrofit/
+
+Настройка использования http без шифрования: https://stackoverflow.com/a/53349252
+
 
 # План:
 1. Развить базу так, чтобы она отдельно была как проект (создать функции по заполнению данных), сделать код по тригеру и тп....
