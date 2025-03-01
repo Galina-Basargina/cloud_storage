@@ -7,7 +7,7 @@ from .database import DatabaseInterface
 g_headers_json = {"Content-Type": "application/json"}
 
 
-def login(server, database: DatabaseInterface, method: str):
+def login(server, database: DatabaseInterface, method: str) -> None:
     if method == 'POST':
         if server.headers.get('Content-Type') != 'application/json':
             response = {'error': 'unsupported Content-Type, use application/json'}
@@ -17,6 +17,8 @@ def login(server, database: DatabaseInterface, method: str):
             request = json.loads(post_body)
             if 'login' in request and 'password' in request:
                 try:
+                    database.execute("begin transaction;")  # для выполнения одновременно нескольких действий
+                    database.execute("delete from auth where (current_timestamp - logged_at) > interval '24 hours';")
                     checksum: str = hashlib.md5(request["password"].encode("utf-8")).hexdigest()
                     row = database.fetch_one("""
 select id,current_timestamp
@@ -30,7 +32,7 @@ where login=%(l)s and password_checksum=%(p)s;""", {'l': request['login'], 'p': 
                         token: str = f"{request['login']}:{checksum}:{salt}"
                         token: str = hashlib.sha256(token.encode("utf-8")).hexdigest()
                         database.execute(
-                            "insert into auth values(%(id)s,%(t)s);",
+                            "insert into auth (logged_in,access_token) values(%(id)s,%(t)s);",
                             {'id': id, 't': token})
                         response = {'token': token}
                 except:
@@ -55,11 +57,43 @@ def auth(server, database: DatabaseInterface) -> typing.Optional[int]:
         return None
     if bearer[:7] != "Bearer ":
         return None
-    token: str = bearer[7:]
-    row = database.fetch_one(
-        "select logged_in from auth where access_token=%(t)s;",
-        {'t': token})
-    database.commit()
-    if row is None:
+    try:
+        database.execute("begin transaction;")  # для выполнения одновременно нескольких действий
+        token: str = bearer[7:]
+        database.execute("""
+delete from auth
+where (current_timestamp - logged_at) > interval '24 hours' and access_token=%(t)s;""",
+            {'t': token})
+        row = database.fetch_one("""
+select logged_in from auth
+where access_token=%(t)s;""",
+            {'t': token})
+        database.commit()
+        if row is None:
+            return None
+        return int(row[0])
+    except:
+        database.rollback()
         return None
-    return int(row[0])
+
+
+def setup_auth_id(database: DatabaseInterface, authorized_id: int) -> None:
+    database.execute("SET cloud_storage.auth_id=%(id)s", {'id': authorized_id})
+
+
+def logout(server, database: DatabaseInterface) -> None:
+    bearer: typing.Optional[str] = server.headers.get('Authorization')
+    if bearer is None:
+        return
+    if bearer[:7] != "Bearer ":
+        return
+    try:
+        token: str = bearer[7:]
+        database.execute("""
+delete from auth
+where access_token=%(t)s;""", {'t': token})
+    except:
+        database.rollback()
+    else:
+        database.commit()
+    server.prepare_response(200)  # OK (=200)

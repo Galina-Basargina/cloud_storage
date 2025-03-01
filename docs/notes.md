@@ -387,7 +387,7 @@ server {
 	location / {
 		try_files $uri $uri/ =404;
 	}
-	location ~ ^/(auth/login|users|folders|files|filedata/) {
+	location ~ ^/(auth/login|auth/logout|users|folders|files|filedata/) {
 		proxy_pass http://127.0.0.1:8080;
 	}
 	location ~ \.php$ {
@@ -443,7 +443,7 @@ server {
 	location / {
 		try_files \$uri \$uri/ =404;
 	}
-	location ~ ^/(auth/login|users|folders|files|filedata/) {
+	location ~ ^/(auth/login|auth/logout|users|folders|files|filedata/) {
 		proxy_pass http://127.0.0.1:8080;
 	}
 	location ~ \.php\$ {
@@ -628,6 +628,34 @@ sudo tcpdump -vvv 'tcp port 80'
 ### Java Android SQLite
 
 В ходе работы над сохранением настроек в android-приложении потребовалось создать "вечноживущий" экземпляр объекта с параметрами. Воспользовалась шаблоном проектирования Singleton (Одиночка): https://en.wikipedia.org/wiki/Singleton_pattern#Lazy_initialization
+
+## Аудит. Журнализация действий пользователя
+
+В целях обучения работы с триггерами в PostgreSQL была выбрана задача автоматической журнализации действий пользователей. Аудит будем делать с помощью триггеров (логики расположенной на сервере, то есть хранимые процедуры расположенные на сервере).
+
+Действия, аудит которых будет выполняться:
+- Действия с пользователем:
+	- (A) Аутентификация пользователя (insert в auth)
+	- (E) Выход/отключение пользователя (delete из auth) 
+	- (I) Добавление пользователя (insert в users)
+	- (U) Редактирование данных пользователя, например пароль (update users)
+	- (D) Удаление пользователя (delete из users)
+- Действия с папками:
+	- (I) Создание папки (insert в folders)
+	- (D) Удаление папки (delete из folders)
+	- (U) Перемещение или переименование папки (update folders)
+	- (i) Предоставление доступа к папке (insert в shared_folders)
+	- (d) Удаление доступа к папке (delete из shared_folders)
+	- (u) Изменение настроек доступа к папке (update shared_folders)
+- Действия с файлами:
+	- (I) Загрузка файла (insert в files)
+	- (D) Удаление файла (delete из files)
+	- (U) Перемещение или переименование файла (update files)
+	- (i) Предоставление доступа к файлу (insert в shared_files)
+	- (d) Удаление доступа к файлу (delete из shared_files)
+	- (u) Изменение настроек доступа к файлу (update shared_files)
+
+В списках выше проставлены коды операций (буквы), которые будут сохраняться в таблицах аудита.  
 
 # План:
 1. Развить базу так, чтобы она отдельно была как проект (создать функции по заполнению данных), сделать код по тригеру и тп....

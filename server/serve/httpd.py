@@ -6,7 +6,7 @@ from .database import DatabaseInterface
 from .serve_users import users
 from .serve_folders import folders
 from .serve_files import files, filedata
-from .serve_auth import login, auth
+from .serve_auth import login, auth, setup_auth_id, logout
 
 
 class CloudServerRunner:
@@ -66,6 +66,8 @@ class CloudServer(BaseHTTPRequestHandler):
             login(self, self.runner.database, method)
         elif request_path == '/users':
             users(self, self.runner.database, method, None)
+        elif request_path == '/auth/logout':
+            logout(self, self.runner.database)
         # защищенные запросы
         else:
             authorized_id: typing.Optional[int] = auth(self, self.runner.database)
@@ -74,18 +76,20 @@ class CloudServer(BaseHTTPRequestHandler):
                     401,  # Unauthorized (=401)
                     headers={"Content-Type": "application/json"},
                     json_data={'error': 'unauthorized'})
-            elif request_path == '/users/me':
-                users(self, self.runner.database, method, user_id=authorized_id)
-            elif request_path == '/folders':
-                folders(self, self.runner.database, method, None, owner_id=authorized_id)
-            elif request_path[:9] == '/folders/':
-                folders(self, self.runner.database, method, int(request_path[9:]), owner_id=authorized_id)
-            elif request_path == '/files':
-                files(self, self.runner.database, self.runner.storage, method=method, file_id=None, owner_id=authorized_id)
-            elif request_path[:7] == '/files/':
-                files(self, self.runner.database, self.runner.storage, method, int(request_path[7:]), owner_id=authorized_id)
-            elif method == "GET" and request_path[:10] == '/filedata/':
-                filedata(self, self.runner.database, request_path, owner_id=authorized_id)
+            else:
+                setup_auth_id(self.runner.database, authorized_id)
+                if request_path == '/users/me':
+                    users(self, self.runner.database, method, user_id=authorized_id)
+                elif request_path == '/folders':
+                    folders(self, self.runner.database, method, None, owner_id=authorized_id)
+                elif request_path[:9] == '/folders/':
+                    folders(self, self.runner.database, method, int(request_path[9:]), owner_id=authorized_id)
+                elif request_path == '/files':
+                    files(self, self.runner.database, self.runner.storage, method=method, file_id=None, owner_id=authorized_id)
+                elif request_path[:7] == '/files/':
+                    files(self, self.runner.database, self.runner.storage, method, int(request_path[7:]), owner_id=authorized_id)
+                elif method == "GET" and request_path[:10] == '/filedata/':
+                    filedata(self, self.runner.database, request_path, owner_id=authorized_id)
 
     def serve_get(self):
         request_path: str = self.path

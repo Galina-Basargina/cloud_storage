@@ -152,6 +152,7 @@ if (empty($token)) { ?><!DOCTYPE html>
         // Функция выхода
         function logout() {
             if(!confirm('Вы действительно хотите выйти?')) return;
+            logoutByRequest();
             deleteCookie('token');
             refreshPage();
         }

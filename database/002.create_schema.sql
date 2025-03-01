@@ -1,11 +1,11 @@
 -- UTF-8 without BOM
 -- скрипт выполняется с правами пользователя cs_user (см. 001.create_db.sql)
--- скрипт создаёт схему базы данных
+-- скрипт создаёт схему базы данных v2
 
 CREATE SCHEMA IF NOT EXISTS coursework AUTHORIZATION cs_user;
 
-drop table if exists coursework.shares_folders;
-drop table if exists coursework.shares_files;
+drop table if exists coursework.shared_folders;
+drop table if exists coursework.shared_files;
 drop table if exists coursework.files;
 drop table if exists coursework.folders;
 drop table if exists coursework.auth;
@@ -17,16 +17,18 @@ create table coursework.users (
  login text not null unique,
  password_checksum text not null
 );
+insert into coursework.users values (0, 'admin', ':nologin:');
 
 create table coursework.auth (
  logged_in integer not null references coursework.users(id),
- access_token text not null unique
+ access_token text not null unique,
+ logged_at timestamp not null default current_timestamp
 );
 
 create table coursework.folders (
  id serial primary key,
  parent integer null references coursework.folders(id),
- owner integer not null references coursework.users(id),
+ owner integer not null references coursework.users(id) on delete cascade,
  name text not null,
  constraint folders_unique unique (parent, name)
 );
@@ -43,16 +45,18 @@ create table coursework.files (
  upload_date timestamp not null default current_timestamp
 );
 
-create table coursework.shares_files (
+create table coursework.shared_files (
  file integer references coursework.files(id),
  recipient integer references coursework.users(id),
- read_onle bool not null default true -- при false можно удалить, переименовать
+ read_only boolean not null default true, -- при false можно удалить, переименовать
+ constraint shared_files_unique unique (file, recipient)
 );
 
-create table coursework.shares_folders (
+create table coursework.shared_folders (
  folder integer references coursework.folders(id),
  recipient integer references coursework.users(id),
- read_onle bool not null default true -- при false можно удалить, переименовать
+ read_only boolean not null default true, -- при false можно удалить, переименовать
+ constraint shared_folders_unique unique (folder, recipient)
 );
 
 

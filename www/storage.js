@@ -41,6 +41,30 @@ function logoutOnAuthError(){
     refreshPage();
 }
 
+// Logoff пользователя
+function logoutByRequest(){
+    let token = getCookie('token');
+    if (!token) return;
+    $.ajax({
+        url: '/auth/logout',
+        method: 'get',
+        async:false, // ждем ответ
+        // contentType: 'application/json',
+        // data: JSON.stringify({}),
+        headers: {'Authorization': 'Bearer '+token},
+        // success: function(data){},
+        error: function (jqXHR, exception) {
+            if (jqXHR.status === 0) alert('Not connect. Verify Network.');
+            else if (jqXHR.status == 400) alert('Bad request (400).');
+            else if (jqXHR.status == 500) alert('Internal Server Error (500).');
+            else if (exception === 'parsererror') alert('Requested JSON parse failed.'); // некорректный ввод post-params => return в .php, нет данных
+            else if (exception === 'timeout') alert('Time out error.'); // сервер завис?
+            else if (exception === 'abort') alert('Ajax request aborted.');
+            else alert('Uncaught Error. ' + jqXHR.responseText);
+        }
+    });
+}
+
 //---------- ----------
 // поддержка модели данных (MODEL)
 //---------- ----------
