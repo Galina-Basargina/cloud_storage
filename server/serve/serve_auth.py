@@ -84,8 +84,10 @@ def setup_auth_id(database: DatabaseInterface, authorized_id: int) -> None:
 def logout(server, database: DatabaseInterface) -> None:
     bearer: typing.Optional[str] = server.headers.get('Authorization')
     if bearer is None:
+        server.prepare_response(405)  # недопустимая комбинация
         return
     if bearer[:7] != "Bearer ":
+        server.prepare_response(405)  # недопустимая комбинация
         return
     try:
         token: str = bearer[7:]
@@ -97,3 +99,4 @@ where access_token=%(t)s;""", {'t': token})
     else:
         database.commit()
     server.prepare_response(200)  # OK (=200)
+
