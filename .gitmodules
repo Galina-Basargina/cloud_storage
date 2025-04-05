@@ -1,3 +1,6 @@
 [submodule "android"]
 	path = android
-	url = git@github.com:Galina-Basargina/cloud_storage_android.git
+	url = ../cloud_storage_android.git
+[submodule "csharp"]
+	path = csharp
+	url = ../cloud_storage_csharp.git
