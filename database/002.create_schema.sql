@@ -5,6 +5,8 @@
 CREATE SCHEMA IF NOT EXISTS coursework AUTHORIZATION cs_user;
 
 drop table if exists coursework.shared_folders;
+drop index if exists coursework.shared_files_unique_public;
+drop index if exists coursework.shared_files_unique;
 drop table if exists coursework.shared_files;
 drop table if exists coursework.files;
 drop table if exists coursework.folders;
@@ -46,11 +48,20 @@ create table coursework.files (
 );
 
 create table coursework.shared_files (
- file integer references coursework.files(id),
+ file integer not null references coursework.files(id),
  recipient integer references coursework.users(id),
- read_only boolean not null default true, -- при false можно удалить, переименовать
- constraint shared_files_unique unique (file, recipient)
+ read_only boolean not null default true -- при false можно удалить, переименовать
 );
+
+create unique index shared_files_unique
+    on coursework.shared_files using btree
+    (file, recipient)
+    where ((file is not null) and (recipient is not null));
+
+create unique index shared_files_unique_public
+    on coursework.shared_files using btree
+    (file)
+    where ((file is not null) and (recipient is null));
 
 create table coursework.shared_folders (
  folder integer references coursework.folders(id),

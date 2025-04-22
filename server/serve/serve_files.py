@@ -85,8 +85,18 @@ returning id;""", {
     elif method == 'GET' and file_id is None:
         try:
             rows = database.fetch_all("""
-select id,"owner",folder,original_filename,url_filename,filesize,content_type,upload_date
-from files
+select
+ id,
+ "owner",
+ folder,
+ original_filename,
+ url_filename,
+ filesize,
+ content_type,
+ upload_date,
+ public.file is not null as public
+from files as f
+  left join shared_files as public on (public.file=f.id and public.recipient is null)
 where %(o)s=owner;""", {'o': int(owner_id)})
             files_list = []
             if rows is not None:
@@ -97,7 +107,8 @@ where %(o)s=owner;""", {'o': int(owner_id)})
                                "url_filename": _[4],
                                "filesize": _[5],
                                "content_type": _[6],
-                               "upload_date": str(_[7].isoformat())}
+                               "upload_date": str(_[7].isoformat()),
+                               "public": _[8]}
                               for _ in rows]
             response = {'message': f'Handled {method} request', 'files': files_list}
         except:
@@ -235,6 +246,19 @@ select count(1) from deleted;""", {'id': file_id, 'o': int(owner_id)})
         server.prepare_response(405)  # недопустимая комбинация
 
 
+def __send_filedata(server, server_filename: str, content_type: str) -> None:
+    try:
+        f = open(server_filename, mode='rb')
+        bin = f.read()
+        f.close()
+        server.prepare_response(
+            200,
+            headers={"Content-Type": content_type},
+            bytes_data=bin)  # OK (=200)
+    except:
+        server.prepare_response(404)  # Not Found (=404)
+
+
 def filedata(server,
              database: DatabaseInterface,
              request_path: str,
@@ -252,16 +276,30 @@ where url_filename=%(uf)s;""", {'uf': request_path})
         else:
             server_filename: str = str(row[1])
             content_type: str = str(row[2])
-            try:
-                f = open(server_filename, mode='rb')
-                bin = f.read()
-                f.close()
-                server.prepare_response(
-                    200,
-                    headers={"Content-Type": content_type},
-                    bytes_data=bin)  # OK (=200)
-            except:
-                server.prepare_response(404)  # Not Found (=404)
+            __send_filedata(server, server_filename, content_type)
+    except:
+        database.rollback()
+        server.prepare_response(500)  # Internal Server Error (=500)
+
+
+def filedata_public(server,
+             database: DatabaseInterface,
+             request_path: str):
+    try:
+        row = database.fetch_one("""
+select server_filename,content_type
+from files, shared_files
+where
+ id=file and
+ recipient is null and
+ url_filename=%(uf)s;""", {'uf': request_path})
+        database.commit()
+        if row is None:
+            server.prepare_response(403)  # Forbidden (=403)
+        else:
+            server_filename: str = str(row[0])
+            content_type: str = str(row[1])
+            __send_filedata(server, server_filename, content_type)
     except:
         database.rollback()
         server.prepare_response(500)  # Internal Server Error (=500)

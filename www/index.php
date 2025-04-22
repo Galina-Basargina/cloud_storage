@@ -122,6 +122,9 @@ if (empty($token)) { ?><!DOCTYPE html>
                     <button class="button disabled-button" id="btn_open" onclick="onOpenFile()">
                         <i class="fas fa-download"></i> Открыть
                     </button>
+                    <button class="button disabled-button" id="btn_share" onclick="onShareFile()">
+                        <i class="fas fa-up-right-from-square"></i> Поделиться
+                    </button>
                     <button class="button disabled-button" id="btn_rename" onclick="onRenameFile()">
                         <i class="fas fa-edit"></i> Переименовать
                     </button>

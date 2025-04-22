@@ -1,6 +1,9 @@
 :root {
     --main-bg: #1a1a1a;
     --accent-red: #8B0000;
+    --selected-accent-red: #B60000;
+    --shared-blue: #4166d5;
+    --selected-shared-blue: #3a68f5;
     --text-primary: #ffffff;
     --hover-bg: #3a3a3a;
     --selected-bg: #444;
@@ -65,10 +68,10 @@ body {
     background-color: var(--accent-red);
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
+    padding: 5px 10px;
+    border-radius: 4px;
     cursor: pointer;
-    margin: 0 5px;
+    margin: 0 2px;
     transition: background-color 0.3s;
 }
 
@@ -78,7 +81,7 @@ body {
 
 .logout-btn {
     background-color: #4a0000;
-    padding: 10px 15px;
+    padding: 5px 8px;
 }
 
 .disabled-button {
@@ -121,4 +124,14 @@ body {
 .file-selected {
     background-color: var(--selected-bg);
     transform: translateY(-3px);
+}
+
+div.file-selected > i.file-icon {
+    color: var(--selected-accent-red);
+}
+div.file-shared > i.file-icon {
+    color: var(--shared-blue);
+}
+div.file-selected.file-shared > i.file-icon {
+    color: var(--selected-shared-blue);
 }

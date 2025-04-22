@@ -5,8 +5,9 @@ import json
 from .database import DatabaseInterface
 from .serve_users import users
 from .serve_folders import folders
-from .serve_files import files, filedata
+from .serve_files import files, filedata, filedata_public
 from .serve_auth import login, auth, setup_auth_id, logout
+from .serve_share import share
 
 
 class CloudServerRunner:
@@ -72,16 +73,19 @@ class CloudServer(BaseHTTPRequestHandler):
         else:
             authorized_id: typing.Optional[int] = auth(self, self.runner.database)
             if authorized_id is None:
-                self.prepare_response(
-                    401,  # Unauthorized (=401)
-                    headers={"Content-Type": "application/json"},
-                    json_data={'error': 'unauthorized'})
+                if method == "GET" and request_path[:10] == '/filedata/':
+                    filedata_public(self, self.runner.database, request_path)
+                else:
+                    self.prepare_response(
+                        401,  # Unauthorized (=401)
+                        headers={"Content-Type": "application/json"},
+                        json_data={'error': 'unauthorized'})
             else:
                 setup_auth_id(self.runner.database, authorized_id)
                 if request_path == '/users/me':
                     users(self, self.runner.database, method, user_id=authorized_id)
                 elif request_path == '/folders':
-                    folders(self, self.runner.database, method, None, owner_id=authorized_id)
+                    folders(self, self.runner.database, method, folder_id=None, owner_id=authorized_id)
                 elif request_path[:9] == '/folders/':
                     folders(self, self.runner.database, method, int(request_path[9:]), owner_id=authorized_id)
                 elif request_path == '/files':
@@ -90,6 +94,10 @@ class CloudServer(BaseHTTPRequestHandler):
                     files(self, self.runner.database, self.runner.storage, method, int(request_path[7:]), owner_id=authorized_id)
                 elif method == "GET" and request_path[:10] == '/filedata/':
                     filedata(self, self.runner.database, request_path, owner_id=authorized_id)
+                elif request_path == '/share':
+                    share(self, self.runner.database, method, share_id=None, owner_id=authorized_id)
+                else:
+                    self.prepare_response(404)  # Not Found (=404)
 
     def serve_get(self):
         request_path: str = self.path

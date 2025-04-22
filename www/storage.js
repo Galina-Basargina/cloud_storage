@@ -76,7 +76,10 @@ var modelData = {
         // {id: 18, parent: 8, name: 'folder1'},
     ],
     files: [
-        // {id: 5, original_filename: 'car.jpg', url_filename: '/???', filesize: 100, content_type: 'image/jpg', upload_date: '2025-02-03'}
+        // {id: 5, original_filename: 'car.jpg', url_filename: '/???',
+        //  filesize: 100, content_type: 'image/jpg', upload_date: '2025-02-03',
+        //  share: {public: false, private: [40,16]}
+        // }
     ]
 };
 
@@ -116,7 +119,9 @@ function modelStoreFiles(folder_id, data){
                 url_filename: file.url_filename,
                 filesize: file.filesize,
                 content_type: file.content_type,
-                upload_date: file.upload_date});
+                upload_date: file.upload_date,
+                share: {public: file.public, private: []}
+            });
         }
     })
 }
@@ -298,6 +303,33 @@ function modelUploadFile(name, size, content_type, content){
     });
 }
 
+// расшаривание файла без перезагрузки модели
+function modelShareFileToPublic(file_id) {
+    $.ajax({
+        url: '/share',
+        method: 'post',
+        async: false,
+        contentType: 'application/json',
+        headers: {'Authorization': 'Bearer '+getCookie('token')},
+        data: JSON.stringify({type: 'public', file_id: file_id}),
+        success: function(data){
+            modelGetFoldersAndFiles(modelData.current_folder.id);
+            viewChangeFolder();
+        },
+        error: function (jqXHR, exception) {
+            if (jqXHR.status === 0) alert('Not connect. Verify Network.');
+            else if (jqXHR.status == 401) logoutOnAuthError();
+            else if (jqXHR.status == 404) alert('Requested file not found (404).');
+            else if (jqXHR.status == 400) alert('Bad request (400).');
+            else if (jqXHR.status == 500) alert('Internal Server Error (500).');
+            else if (exception === 'parsererror') alert('Requested JSON parse failed.'); // некорректный ввод post-params => return в .php, нет данных
+            else if (exception === 'timeout') alert('Time out error.'); // сервер завис?
+            else if (exception === 'abort') alert('Ajax request aborted.');
+            else alert('Uncaught Error. ' + jqXHR.responseText);
+        }
+    });
+}
+
 // переименование файла и перезагрузка модели
 function modelRenameFile(file_id, file_name) {
     $.ajax({
@@ -381,7 +413,7 @@ function viewGetFileIcon(content_type) {
 // отключение доступа к кнопкам переименования и удаления файлов
 function disableFileButtons() {
     viewData.selected_file_id = null;
-    $('#btn_rename, #btn_delete, #btn_open').each(function(index, element){
+    $('#btn_rename, #btn_delete, #btn_open, #btn_share').each(function(index, element){
         $(this).addClass("disabled-button");
     });
 }
@@ -389,7 +421,7 @@ function disableFileButtons() {
 // включение доступа к кнопкам переименования и удаления файлов
 function enableFileButtons(file_id) {
     viewData.selected_file_id = file_id;
-    $('#btn_rename, #btn_delete, #btn_open').each(function(index, element){
+    $('#btn_rename, #btn_delete, #btn_open, #btn_share').each(function(index, element){
         $(this).removeClass("disabled-button");
     });
 }
@@ -456,6 +488,23 @@ function onOpenFile() {
     onSelectFile(viewData.selected_file_id);
 }
 
+// Вызывается при нажатии на кнопку расшаривания файла
+function onShareFile() {
+    var btn = $('#btn_share');
+    $('#btn_share.disabled-button').each(function(){ btn = undefined; });
+    if (btn === undefined) return;
+    if (viewData.selected_file_id === null) return;
+
+    var file = modelFindFileById(viewData.selected_file_id);
+    if (file === null) return;
+    if (file.share.public) return;
+    
+    var answer = window.confirm("Уверены, что хотите поделиться файлом?");
+    if (!answer) return;
+
+    modelShareFileToPublic(viewData.selected_file_id);
+}
+
 // вызывается при переименовании файла
 function onRenameFile() {
     var btn = $('#btn_rename');
@@ -510,7 +559,7 @@ function viewChangeFolder(){
     // отрисовка файлов
     const grid = document.getElementById('fileGrid');
     grid.innerHTML = modelData.files.map(file => `
-        <div class="file-item" ondblclick="onSelectFile(${file.id})" onclick="onClickFile(${file.id})">
+        <div class="file-item ${file.share.public?"file-shared":""}" ondblclick="onSelectFile(${file.id})" onclick="onClickFile(${file.id})">
             <i class="${viewGetFileIcon(file.content_type)} file-icon"></i>
             <div>${file.original_filename}</div>
         </div>
