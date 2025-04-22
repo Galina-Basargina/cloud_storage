@@ -1,3 +1,4 @@
+import os
 import sys
 import datetime
 import hashlib
@@ -246,15 +247,23 @@ select count(1) from deleted;""", {'id': file_id, 'o': int(owner_id)})
         server.prepare_response(405)  # недопустимая комбинация
 
 
-def __send_filedata(server, server_filename: str, content_type: str) -> None:
+def __send_filedata(server, server_filename: str, content_type: str, method: typing.Optional[str]=None) -> None:
     try:
-        f = open(server_filename, mode='rb')
-        bin = f.read()
-        f.close()
-        server.prepare_response(
-            200,
-            headers={"Content-Type": content_type},
-            bytes_data=bin)  # OK (=200)
+        if method == "GET":
+            f = open(server_filename, mode='rb')
+            bin = f.read()
+            f.close()
+            server.prepare_response(
+                200,  # OK (=200)
+                headers={"Content-Type": content_type},
+                bytes_data=bin)
+        elif method == "HEAD":
+            server.prepare_response(
+                200,  # OK (=200)
+                headers={"Content-Type": content_type,
+                         "Content-Length": os.path.getsize(server_filename)})
+        else:
+            server.prepare_response(405)  # Not Allowed (=405)
     except:
         server.prepare_response(404)  # Not Found (=404)
 
@@ -284,6 +293,7 @@ where url_filename=%(uf)s;""", {'uf': request_path})
 
 def filedata_public(server,
              database: DatabaseInterface,
+             method: str,
              request_path: str):
     try:
         row = database.fetch_one("""
@@ -299,7 +309,7 @@ where
         else:
             server_filename: str = str(row[0])
             content_type: str = str(row[1])
-            __send_filedata(server, server_filename, content_type)
+            __send_filedata(server, server_filename, content_type, method)
     except:
         database.rollback()
         server.prepare_response(500)  # Internal Server Error (=500)

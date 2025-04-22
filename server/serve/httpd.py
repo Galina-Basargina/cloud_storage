@@ -73,8 +73,8 @@ class CloudServer(BaseHTTPRequestHandler):
         else:
             authorized_id: typing.Optional[int] = auth(self, self.runner.database)
             if authorized_id is None:
-                if method == "GET" and request_path[:10] == '/filedata/':
-                    filedata_public(self, self.runner.database, request_path)
+                if method in ["GET", "HEAD"] and request_path[:10] == '/filedata/':
+                    filedata_public(self, self.runner.database, method, request_path)
                 else:
                     self.prepare_response(
                         401,  # Unauthorized (=401)
