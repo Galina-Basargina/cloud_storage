@@ -285,7 +285,7 @@ where url_filename=%(uf)s;""", {'uf': request_path})
         else:
             server_filename: str = str(row[1])
             content_type: str = str(row[2])
-            __send_filedata(server, server_filename, content_type)
+            __send_filedata(server, server_filename, content_type, "GET")
     except:
         database.rollback()
         server.prepare_response(500)  # Internal Server Error (=500)
