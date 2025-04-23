@@ -51,7 +51,7 @@ h1 {
     line-height: 1.6;
 }
 
-.cta-button {
+.cta-button, .apk-button {
     background: #8B0000;
     color: #fff;
     padding: 18px 45px;
@@ -64,10 +64,19 @@ h1 {
     border: 2px solid transparent;
 }
 
-.cta-button:hover {
+.cta-button:hover, .apk-button:hover {
     background: #6A0D0D;
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(139, 0, 0, 0.3);
+}
+
+.apk-button {
+    background: #515151;
+}
+
+.apk-button:hover {
+    background: #4a4a4a;
+    box-shadow: 0 8px 20px rgba(34, 34, 34, 0.3);
 }
 
 .features {
