@@ -330,6 +330,32 @@ function modelShareFileToPublic(file_id) {
     });
 }
 
+// закрытие доступа к файлу без перезагрузки модели
+function modelUnshareFileFromPublic(file_id) {
+    $.ajax({
+        url: '/share/'+file_id,
+        method: 'delete',
+        async: false,
+        contentType: 'application/json',
+        headers: {'Authorization': 'Bearer '+getCookie('token')},
+        success: function(data){
+            modelGetFoldersAndFiles(modelData.current_folder.id);
+            viewChangeFolder();
+        },
+        error: function (jqXHR, exception) {
+            if (jqXHR.status === 0) alert('Not connect. Verify Network.');
+            else if (jqXHR.status == 401) logoutOnAuthError();
+            else if (jqXHR.status == 404) alert('Requested file not found (404).');
+            else if (jqXHR.status == 400) alert('Bad request (400).');
+            else if (jqXHR.status == 500) alert('Internal Server Error (500).');
+            else if (exception === 'parsererror') alert('Requested JSON parse failed.'); // некорректный ввод post-params => return в .php, нет данных
+            else if (exception === 'timeout') alert('Time out error.'); // сервер завис?
+            else if (exception === 'abort') alert('Ajax request aborted.');
+            else alert('Uncaught Error. ' + jqXHR.responseText);
+        }
+    });
+}
+
 // переименование файла и перезагрузка модели
 function modelRenameFile(file_id, file_name) {
     $.ajax({
@@ -497,12 +523,39 @@ function onShareFile() {
 
     var file = modelFindFileById(viewData.selected_file_id);
     if (file === null) return;
-    if (file.share.public) return;
-    
-    var answer = window.confirm("Уверены, что хотите поделиться файлом?");
-    if (!answer) return;
 
-    modelShareFileToPublic(viewData.selected_file_id);
+    $('#share_toggle').prop('checked', file.share.public);
+    $('#link_container').toggle(file.share.public);
+    if (file.share.public)
+        $('#share_link').val(window.location.origin + file.url_filename);
+
+    $('#share_toggle').on('change', function() {
+        if ($(this).prop('checked')) {
+            modelShareFileToPublic(viewData.selected_file_id);
+            $('#link_container').toggle(true);
+            $('#share_link').val(window.location.origin + file.url_filename);
+        }
+        else {
+            modelUnshareFileFromPublic(viewData.selected_file_id);
+            $('#link_container').toggle(false);
+        }
+    });
+
+    $('.copy-btn').on('click', function() {
+        let link = $('#share_link').val();
+        navigator.clipboard.writeText(link)
+            .then(() => alert('Ссылка скопирована!'))
+            .catch(err => console.error('Ошибка копирования:', err));
+    });
+
+    $('.close-btn').on('click', function() {
+        $('#share_modal').hide();
+        $('.close-btn').off('click');
+        $('.copy-btn').off('click');
+        $('#share_toggle').off('change');
+    });
+
+    $('#share_modal').show();
 }
 
 // вызывается при переименовании файла

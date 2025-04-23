@@ -96,6 +96,8 @@ class CloudServer(BaseHTTPRequestHandler):
                     filedata(self, self.runner.database, request_path, owner_id=authorized_id)
                 elif request_path == '/share':
                     share(self, self.runner.database, method, share_id=None, owner_id=authorized_id)
+                elif request_path[:7] == '/share/':
+                    share(self, self.runner.database, method, share_id=int(request_path[7:]), owner_id=authorized_id)
                 else:
                     self.prepare_response(404)  # Not Found (=404)
 

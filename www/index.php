@@ -143,6 +143,42 @@ if (empty($token)) { ?><!DOCTYPE html>
         </div>
     </div>
 
+    <div class="modal-overlay" id="share_modal" style="display: none;">
+        <div class="share-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-up-right-from-square"></i>
+                    Настройки доступа
+                </h3>
+            </div>
+            
+            <div class="modal-body">
+                <div class="access-control-group">
+                    <div class="access-toggle">
+                        <span class="toggle-label">Общий доступ</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="share_toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="link-input-group" id="link_container" style="display: none;">
+                    <input type="text" class="link-input" id="share_link" readonly>
+                    <button type="button" class="button copy-btn">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div class="modal-actions">
+                    <button class="button close-btn">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="storage.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>

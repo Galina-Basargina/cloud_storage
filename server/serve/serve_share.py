@@ -14,7 +14,7 @@ g_headers_json = {"Content-Type": "application/json"}
 def share(server,
           database: DatabaseInterface,
           method: str,
-          share_id: typing.Optional[str],
+          share_id: typing.Optional[int],
           owner_id: int):
     if method == 'POST' and share_id is None:
         if server.headers.get('Content-Type') != 'application/json':
@@ -76,8 +76,26 @@ returning file;""", {
         # пока заблокированная возможность
         server.prepare_response(405)
     elif method == 'DELETE':
-        # пока заблокированная возможность
-        server.prepare_response(405)
+        share_found: bool = False
+        try:
+            row = database.fetch_one("""
+with deleted as (
+ delete from shared_files where file=%(f)s and recipient is null returning *) 
+select count(1) from deleted;""", {'f': share_id})
+            share_found: bool = row[0] != 0
+        except:
+            database.rollback()
+            response = {'error': 'Error on shared file delete'}
+        else:
+            database.commit()
+            response = {'message': f'Handled {method} request'}
+        error: bool = 'error' in response
+        if error:
+            server.prepare_response(400, headers=g_headers_json, json_data=response)  # Bad request (=400)
+        elif not share_found:
+            server.prepare_response(404, headers=g_headers_json, json_data=response)  # Not Found (=404)
+        else:
+            server.prepare_response(200, headers=g_headers_json, json_data=response)  # OK (=200)
     else:
         # например POST с id (нельзя создать папку, указав id)
         server.prepare_response(405)  # недопустимая комбинация

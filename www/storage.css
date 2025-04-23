@@ -79,7 +79,7 @@ body {
     background-color: #6B0000;
 }
 
-.logout-btn {
+.logout-btn, .close-btn {
     background-color: #4a0000;
     padding: 5px 8px;
 }
@@ -134,4 +134,128 @@ div.file-shared > i.file-icon {
 }
 div.file-selected.file-shared > i.file-icon {
     color: var(--selected-shared-blue);
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fade-in 0.3s ease;
+}
+
+.share-modal {
+    background: #2a2a2a;
+    border-radius: 8px;
+    width: 440px;
+    border: 1px solid var(--accent-red);
+    box-shadow: 0 0 15px rgba(139, 0, 0, 0.3);
+}
+
+.modal-header {
+    padding: 1.2rem;
+    border-bottom: 1px solid #3a3a3a;
+}
+
+.modal-title {
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.modal-body {
+    padding: 1.2rem;
+}
+
+.modal-footer {
+    padding: 1.2rem;
+    border-top: 1px solid #3a3a3a;
+}
+
+.access-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #3a3a3a;
+    transition: 0.4s;
+    border-radius: 34px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: #ffffff;
+    transition: 0.4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background: var(--accent-red);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+.link-input-group {
+    position: relative;
+    margin-top: 1rem;
+}
+
+.link-input {
+    width: 100%;
+    padding: 0.6rem;
+    background: #3a3a3a;
+    border: 1px solid #4a4a4a;
+    border-radius: 6px;
+    color: var(--text-primary);
+}
+
+.copy-btn {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    padding: 0.4rem 0.8rem;
+    background: var(--accent-red);
+    border-radius: 4px;
+    transition: 0.3s;
+}
+
+.copy-btn:hover {
+    background: var(--selected-accent-red);
 }
